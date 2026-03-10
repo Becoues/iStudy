@@ -15,6 +15,9 @@ ENV DATABASE_URL="file:/app/data/istudy.db"
 # Generate Prisma client
 RUN npx prisma generate
 
+# Pre-create the database with migrations applied
+RUN mkdir -p /app/data && npx prisma migrate deploy
+
 # Build Next.js (standalone mode)
 RUN npm run build
 
@@ -33,13 +36,11 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
-# Copy Prisma files for migrations
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+# Copy generated Prisma client
 COPY --from=builder /app/src/generated ./src/generated
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
-COPY --from=builder /app/node_modules/dotenv ./node_modules/dotenv
+
+# Copy pre-migrated empty database as template
+COPY --from=builder /app/data/istudy.db /app/data/istudy.db.template
 
 # Copy entrypoint
 COPY docker-entrypoint.sh ./

@@ -1,12 +1,13 @@
 #!/bin/sh
 set -e
 
-# Ensure data directory exists
 mkdir -p /app/data
 
-# Run database migrations on startup
-echo "Running database migrations..."
-node ./node_modules/prisma/build/index.js migrate deploy
-echo "Migrations complete."
+# If no database exists yet, copy the pre-migrated template
+if [ ! -f /app/data/istudy.db ]; then
+  echo "Initializing database from template..."
+  cp /app/data/istudy.db.template /app/data/istudy.db
+  echo "Database initialized."
+fi
 
 exec "$@"
