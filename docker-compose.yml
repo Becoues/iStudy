@@ -1,0 +1,10 @@
+services:
+  istudy:
+    build: .
+    container_name: istudy
+    ports:
+      - "3002:3000"
+    volumes:
+      - ./data:/app/data
+      - ./public/images/knowledge:/app/public/images/knowledge
+    restart: unless-stopped

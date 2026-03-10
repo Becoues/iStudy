@@ -136,25 +136,19 @@ npm run start    # 启动生产服务器（默认端口 3000）
 只需安装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)，然后执行：
 
 ```bash
-# 构建镜像
-docker build -t istudy .
-
-# 运行容器（数据持久化到本地，与 dev 共享存储）
-docker run -d -p 3000:3000 \
-  -v ./data:/app/data \
-  -v ./public/images/knowledge:/app/public/images/knowledge \
-  --name istudy istudy
+# 一键构建并启动
+docker compose up -d
 ```
 
-打开 http://localhost:3000 即可使用。
+打开 http://localhost:3002 即可使用。
 
 **常用命令：**
 
 ```bash
-docker stop istudy      # 停止
-docker start istudy     # 重新启动
-docker rm istudy        # 删除容器
-docker logs istudy      # 查看日志
+docker compose down            # 停止并删除容器
+docker compose up -d           # 重新启动
+docker compose up -d --build   # 代码改动后重新构建
+docker compose logs -f         # 查看日志
 ```
 
 > 数据库文件保存在 `./data/` 目录中，AI 生成的配图保存在 `./public/images/knowledge/` 目录中。
