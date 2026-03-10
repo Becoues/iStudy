@@ -1,3 +1,4 @@
+@import "katex/dist/katex.min.css";
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -126,4 +127,21 @@
   html {
     @apply font-sans;
   }
+}
+
+/* Highlighter effect for ==marked text== */
+mark {
+  background-color: rgba(250, 204, 21, 0.4);
+  padding: 0 2px;
+  border-radius: 2px;
+}
+.dark mark {
+  background-color: rgba(234, 179, 8, 0.25);
+}
+
+/* Code syntax highlighting */
+.hljs {
+  background: oklch(0.205 0 0) !important;
+  border-radius: 0.5rem;
+  padding: 1rem !important;
 }

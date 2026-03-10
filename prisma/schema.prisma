@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -8,4 +5,56 @@ generator client {
 
 datasource db {
   provider = "sqlite"
+}
+
+model KnowledgeModule {
+  id        String   @id @default(cuid())
+  topic     String
+  tags      String   @default("[]")
+  status    String   @default("generating")
+  itemCount Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  items     KnowledgeItem[]
+
+  @@index([createdAt])
+  @@index([status])
+}
+
+model KnowledgeItem {
+  id         String   @id @default(cuid())
+  moduleId   String
+  parentId   String?
+  orderIndex Int      @default(0)
+  title      String
+  difficulty String   @default("basic")
+  content    String
+  depth      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  module   KnowledgeModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  parent   KnowledgeItem?  @relation("ItemExpansion", fields: [parentId], references: [id])
+  children KnowledgeItem[] @relation("ItemExpansion")
+  comments Comment[]
+
+  @@index([moduleId])
+  @@index([parentId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  itemId    String
+  content   String
+  createdAt DateTime @default(now())
+  item      KnowledgeItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+}
+
+model Settings {
+  id        Int      @id @default(1)
+  provider  String   @default("DeerAPI")
+  apiKey    String   @default("")
+  model     String   @default("gpt-4o")
+  updatedAt DateTime @updatedAt
 }

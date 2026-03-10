@@ -41,3 +41,14 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# generated knowledge images
+/public/images/knowledge/
+
+# SQLite database
+*.db
+*.db-journal
+
+# test artifacts
+/test/go-knowledge.*
+/test/response-debug.json
