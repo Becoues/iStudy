@@ -2,9 +2,11 @@
 
 一个面向学生的 AI 驱动知识学习平台。输入任意主题，AI 自动生成结构化知识点，配备流程图、测验题和卡通配图，支持多级知识展开、收藏和评论。
 
-![首页](docs/screenshots/homepage.png)
+![首页](docs/image/首页.png)
 
-![知识详情页](docs/screenshots/knowledge-detail.png)
+![知识详情页](docs/image/知识点.png)
+
+![历史记录](docs/image/历史记录.png)
 
 ## 功能特性
 
@@ -129,15 +131,30 @@ npm run start    # 启动生产服务器（默认端口 3000）
 
 > 注意：Vercel 部署需要额外配置数据库（SQLite 不支持 serverless 环境），可考虑使用 Turso 或 PlanetScale 替代。
 
-### 方式三：Docker 部署
+### 方式三：Docker 部署（最简单）
+
+只需安装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)，然后执行：
 
 ```bash
 # 构建镜像
 docker build -t istudy .
 
-# 运行容器
-docker run -p 3000:3000 istudy
+# 运行容器（数据持久化到本地 data 目录）
+docker run -d -p 3000:3000 -v ./data:/app/data --name istudy istudy
 ```
+
+打开 http://localhost:3000 即可使用。
+
+**常用命令：**
+
+```bash
+docker stop istudy      # 停止
+docker start istudy     # 重新启动
+docker rm istudy        # 删除容器
+docker logs istudy      # 查看日志
+```
+
+> 数据库文件保存在 `./data/` 目录中，删除容器不会丢失数据。
 
 ---
 

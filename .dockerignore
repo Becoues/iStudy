@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+*.db
+*.db-journal
+test/
+docs/
+.DS_Store
+npm-debug.log*
+.env*
+.vercel
+public/images/knowledge/
