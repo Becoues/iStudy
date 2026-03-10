@@ -1,6 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function safeParseJson(text: string): any {
+  try {
+    return JSON.parse(text);
+  } catch {
+    // Escape raw control characters that break JSON parsing
+    const sanitized = text
+      .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "")
+      .replace(/\n/g, "\\n")
+      .replace(/\r/g, "\\r")
+      .replace(/\t/g, "\\t");
+    return JSON.parse(sanitized);
+  }
+}
+
 interface KnowledgeItemWithChildren {
   id: string;
   moduleId: string;
@@ -87,7 +102,7 @@ export async function GET(
 
     const itemsWithParsedContent = module.items.map((item) => ({
       ...item,
-      content: JSON.parse(item.content),
+      content: safeParseJson(item.content),
       commentCount: item._count.comments,
     }));
 
@@ -99,6 +114,7 @@ export async function GET(
       items: tree,
     });
   } catch (error) {
+    console.error("Failed to fetch module:", error);
     return NextResponse.json(
       { error: "Failed to fetch module" },
       { status: 500 }

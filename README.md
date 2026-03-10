@@ -79,7 +79,7 @@ npm install
 npx prisma migrate dev
 ```
 
-> 这会自动创建 SQLite 数据库文件（`prisma/dev.db`），无需手动安装数据库软件。
+> 这会自动创建 SQLite 数据库文件（`data/istudy.db`），无需手动安装数据库软件。
 
 ### 第四步：启动项目
 
@@ -153,6 +153,7 @@ docker compose logs -f         # 查看日志
 
 > 数据库文件保存在 `./data/` 目录中，AI 生成的配图保存在 `./public/images/knowledge/` 目录中。
 > Docker 和本地开发环境共享同一份数据，删除容器不会丢失数据。
+> **注意：** Docker 和 `npm run dev` 不能同时运行，因为 SQLite 不支持多进程并发写入。使用其中一种方式前，请先停止另一种。
 
 ---
 
@@ -181,7 +182,7 @@ src/
 
 **Q: `npx prisma migrate dev` 报错怎么办？**
 
-确保你在项目根目录下执行命令。如果仍有问题，尝试删除 `prisma/dev.db` 后重新执行。
+确保你在项目根目录下执行命令。如果仍有问题，尝试删除 `data/istudy.db` 后重新执行。
 
 **Q: 页面显示"请先在设置中配置 API Key"？**
 
