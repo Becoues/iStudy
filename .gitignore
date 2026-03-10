@@ -46,6 +46,7 @@ next-env.d.ts
 /public/images/knowledge/
 
 # SQLite database
+/data/
 *.db
 *.db-journal
 

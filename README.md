@@ -139,8 +139,11 @@ npm run start    # 启动生产服务器（默认端口 3000）
 # 构建镜像
 docker build -t istudy .
 
-# 运行容器（数据持久化到本地 data 目录）
-docker run -d -p 3000:3000 -v ./data:/app/data --name istudy istudy
+# 运行容器（数据持久化到本地，与 dev 共享存储）
+docker run -d -p 3000:3000 \
+  -v ./data:/app/data \
+  -v ./public/images/knowledge:/app/public/images/knowledge \
+  --name istudy istudy
 ```
 
 打开 http://localhost:3000 即可使用。
@@ -154,7 +157,8 @@ docker rm istudy        # 删除容器
 docker logs istudy      # 查看日志
 ```
 
-> 数据库文件保存在 `./data/` 目录中，删除容器不会丢失数据。
+> 数据库文件保存在 `./data/` 目录中，AI 生成的配图保存在 `./public/images/knowledge/` 目录中。
+> Docker 和本地开发环境共享同一份数据，删除容器不会丢失数据。
 
 ---
 
