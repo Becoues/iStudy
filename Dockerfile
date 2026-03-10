@@ -10,7 +10,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-ENV DATABASE_URL="file:./data/istudy.db"
+ENV DATABASE_URL="file:/app/data/istudy.db"
 
 # Generate Prisma client
 RUN npx prisma generate
@@ -23,9 +23,9 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV DATABASE_URL="file:./data/istudy.db"
+ENV DATABASE_URL="file:/app/data/istudy.db"
 
-# Create directories
+# Create directories for persistent data
 RUN mkdir -p /app/data /app/public/images/knowledge
 
 # Copy standalone build
@@ -35,9 +35,11 @@ COPY --from=builder /app/public ./public
 
 # Copy Prisma files for migrations
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/src/generated ./src/generated
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
+COPY --from=builder /app/node_modules/dotenv ./node_modules/dotenv
 
 # Copy entrypoint
 COPY docker-entrypoint.sh ./

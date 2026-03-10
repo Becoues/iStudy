@@ -24,7 +24,8 @@ export async function GET(
     return NextResponse.json({ error: "Unsupported format" }, { status: 400 });
   }
 
-  const filePath = path.join(
+  // Use absolute path relative to project root
+  const filePath = path.resolve(
     process.cwd(),
     "public",
     "images",

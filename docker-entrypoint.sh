@@ -1,7 +1,12 @@
 #!/bin/sh
 set -e
 
-# Run database migrations on first start
-npx prisma migrate deploy 2>/dev/null || echo "Migrations applied or skipped."
+# Ensure data directory exists
+mkdir -p /app/data
+
+# Run database migrations on startup
+echo "Running database migrations..."
+npx prisma migrate deploy
+echo "Migrations complete."
 
 exec "$@"

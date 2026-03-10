@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     const base64Data = base64Match[2];
 
     // Write image file to public/images/knowledge/
-    const imageDir = path.join(process.cwd(), "public", "images", "knowledge");
+    const imageDir = path.resolve(process.cwd(), "public", "images", "knowledge");
     await fs.mkdir(imageDir, { recursive: true });
 
     const filename = `${itemId}.${ext}`;
