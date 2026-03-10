@@ -1,4 +1,5 @@
 @import "katex/dist/katex.min.css";
+@import "highlight.js/styles/github.min.css";
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -139,9 +140,17 @@ mark {
   background-color: rgba(234, 179, 8, 0.25);
 }
 
-/* Code syntax highlighting */
+/* Code syntax highlighting overrides */
 .hljs {
-  background: oklch(0.205 0 0) !important;
   border-radius: 0.5rem;
   padding: 1rem !important;
+}
+
+/* Ensure code blocks don't overflow */
+.prose pre {
+  overflow-x: auto;
+  max-width: 100%;
+}
+.prose pre code {
+  white-space: pre;
 }

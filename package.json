@@ -14,6 +14,7 @@
     "@prisma/client": "^7.4.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dotenv": "^17.3.1",
     "lucide-react": "^0.577.0",
     "mermaid": "^11.13.0",
     "next": "16.1.6",
