@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     }
 
     const timestamp = Date.now();
-    const imageUrl = `/images/knowledge/${filename}?t=${timestamp}`;
+    const imageUrl = `/api/knowledge/image/${filename}?t=${timestamp}`;
 
     const parsedContent = JSON.parse(item.content);
     parsedContent.imageUrl = imageUrl;
