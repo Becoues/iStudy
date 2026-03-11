@@ -8,6 +8,11 @@ import {
   MessageSquare,
   Loader2,
   ImagePlus,
+  Eye,
+  EyeOff,
+  Download,
+  RefreshCw,
+  Trash2,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -26,6 +31,13 @@ import { cn } from "@/lib/utils";
 import { DifficultyBadge } from "@/components/knowledge/DifficultyBadge";
 import { MermaidDiagram } from "@/components/knowledge/MermaidDiagram";
 import { QuizSection } from "@/components/knowledge/QuizSection";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import type { KnowledgeItemWithChildren } from "@/types/knowledge";
 
 function processHighlights(text: string): string {
@@ -64,6 +76,7 @@ export function KnowledgeItemCard({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | undefined>(item.content.imageUrl);
   const [imageGenerating, setImageGenerating] = useState(false);
+  const [imageCollapsed, setImageCollapsed] = useState(false);
 
   // Sync imageUrl when item prop changes (e.g. after parent re-fetches module data)
   useEffect(() => {
@@ -110,6 +123,44 @@ export function KnowledgeItemCard({
     [item.id, item.content.title, item.content.summary]
   );
 
+  const handleDownloadImage = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!imageUrl) return;
+      try {
+        const res = await fetch(imageUrl);
+        const blob = await res.blob();
+        const ext = imageUrl.split(".").pop()?.split("?")[0] || "png";
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `${item.content.title}.${ext}`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } catch (err) {
+        console.error("Failed to download image:", err);
+      }
+    },
+    [imageUrl, item.content.title]
+  );
+
+  const handleDeleteImage = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!imageUrl) return;
+      try {
+        // Extract filename from URL like /api/knowledge/image/{filename}?t=xxx
+        const urlPath = imageUrl.split("?")[0];
+        const filename = urlPath.split("/").pop();
+        if (!filename) return;
+        await fetch(`/api/knowledge/image/${filename}`, { method: "DELETE" });
+        setImageUrl(undefined);
+      } catch (err) {
+        console.error("Failed to delete image:", err);
+      }
+    },
+    [imageUrl]
+  );
+
   return (
     <div className="flex flex-col gap-0" id={`knowledge-item-${item.id}`}>
       <Card
@@ -143,6 +194,62 @@ export function KnowledgeItemCard({
               {item.commentCount}
             </button>
           )}
+          {/* Image button — generate or dropdown menu */}
+          {imageGenerating ? (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="shrink-0"
+              disabled
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            </Button>
+          ) : imageUrl ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                }
+              >
+                <ImagePlus className="size-4 text-primary" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" side="bottom">
+                <DropdownMenuItem onClick={() => setImageCollapsed((v) => !v)}>
+                  {imageCollapsed ? (
+                    <><Eye className="size-3.5" /> 显示配图</>
+                  ) : (
+                    <><EyeOff className="size-3.5" /> 隐藏配图</>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDownloadImage}>
+                  <Download className="size-3.5" /> 下载配图
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleGenerateImage}>
+                  <RefreshCw className="size-3.5" /> 重新生成
+                </DropdownMenuItem>
+                <DropdownMenuItem variant="destructive" onClick={handleDeleteImage}>
+                  <Trash2 className="size-3.5" /> 删除配图
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="shrink-0"
+              onClick={handleGenerateImage}
+              aria-label="生成配图"
+            >
+              <ImagePlus className="size-4 text-muted-foreground" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon-sm"
@@ -171,7 +278,7 @@ export function KnowledgeItemCard({
           </p>
 
           {/* Generated image */}
-          {imageUrl && (
+          {imageUrl && !imageCollapsed && (
             <div className="rounded-lg overflow-hidden border">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -182,32 +289,6 @@ export function KnowledgeItemCard({
               />
             </div>
           )}
-
-          {/* Generate image button */}
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 self-start"
-            disabled={imageGenerating}
-            onClick={handleGenerateImage}
-          >
-            {imageGenerating ? (
-              <>
-                <Loader2 className="size-3.5 animate-spin" />
-                正在生成配图...
-              </>
-            ) : imageUrl ? (
-              <>
-                <ImagePlus className="size-3.5" />
-                重新生成配图
-              </>
-            ) : (
-              <>
-                <ImagePlus className="size-3.5" />
-                生成配图
-              </>
-            )}
-          </Button>
 
           {/* Expandable details */}
           <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
