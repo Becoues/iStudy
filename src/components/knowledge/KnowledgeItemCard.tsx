@@ -76,7 +76,16 @@ export function KnowledgeItemCard({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | undefined>(item.content.imageUrl);
   const [imageGenerating, setImageGenerating] = useState(false);
-  const [imageCollapsed, setImageCollapsed] = useState(false);
+  const [imageCollapsed, setImageCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(`img-collapsed:${item.id}`) === "1";
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(`img-collapsed:${item.id}`, imageCollapsed ? "1" : "0");
+  }, [imageCollapsed, item.id]);
 
   // Sync imageUrl when item prop changes (e.g. after parent re-fetches module data)
   useEffect(() => {
@@ -154,6 +163,7 @@ export function KnowledgeItemCard({
         if (!filename) return;
         await fetch(`/api/knowledge/image/${filename}`, { method: "DELETE" });
         setImageUrl(undefined);
+        localStorage.removeItem(`img-collapsed:${item.id}`);
       } catch (err) {
         console.error("Failed to delete image:", err);
       }
