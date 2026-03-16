@@ -13,6 +13,7 @@ import {
   Download,
   RefreshCw,
   Trash2,
+  FileDown,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -39,6 +40,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import type { KnowledgeItemWithChildren } from "@/types/knowledge";
+import { ExportObsidianDialog } from "@/components/knowledge/ExportObsidianDialog";
 
 function processHighlights(text: string): string {
   return text.replace(/==(.*?)==/g, '<mark>$1</mark>');
@@ -47,6 +49,7 @@ function processHighlights(text: string): string {
 interface KnowledgeItemCardProps {
   item: KnowledgeItemWithChildren;
   moduleId: string;
+  moduleTopic?: string;
   isFavorite: boolean;
   isSelected: boolean;
   onToggleFavorite: (itemId: string, title: string) => void;
@@ -62,6 +65,7 @@ interface KnowledgeItemCardProps {
 export function KnowledgeItemCard({
   item,
   moduleId,
+  moduleTopic,
   isFavorite,
   isSelected,
   onToggleFavorite,
@@ -260,6 +264,24 @@ export function KnowledgeItemCard({
               <ImagePlus className="size-4 text-muted-foreground" />
             </Button>
           )}
+          {/* Export to Obsidian button */}
+          <ExportObsidianDialog
+            moduleId={moduleId}
+            moduleTopic={moduleTopic || ""}
+            itemId={item.id}
+            itemTitle={item.content.title}
+            trigger={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0"
+                onClick={(e) => e.stopPropagation()}
+                aria-label="导出到 Obsidian"
+              >
+                <FileDown className="size-4 text-muted-foreground" />
+              </Button>
+            }
+          />
           <Button
             variant="ghost"
             size="icon-sm"
@@ -391,6 +413,7 @@ export function KnowledgeItemCard({
               key={child.id}
               item={child}
               moduleId={moduleId}
+              moduleTopic={moduleTopic}
               isFavorite={favorites.includes(child.id)}
               isSelected={selectedItemId === child.id}
               onToggleFavorite={onToggleFavorite}

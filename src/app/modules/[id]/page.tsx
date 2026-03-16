@@ -13,6 +13,7 @@ import {
   Trash2,
   Pencil,
   X,
+  FileDown,
 } from "lucide-react";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useStreamResponse } from "@/hooks/useStreamResponse";
@@ -20,6 +21,7 @@ import { parseExpansionResponse } from "@/lib/parseKnowledge";
 import { KnowledgeItemList } from "@/components/knowledge/KnowledgeItemList";
 import { KnowledgeToc } from "@/components/knowledge/KnowledgeToc";
 import { FollowUpFab } from "@/components/knowledge/FollowUpFab";
+import { ExportObsidianDialog } from "@/components/knowledge/ExportObsidianDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -395,6 +397,16 @@ export default function ModuleDetailPage() {
           <h1 className="text-xl font-bold tracking-tight">
             {moduleData.topic}
           </h1>
+          <ExportObsidianDialog
+            moduleId={moduleId}
+            moduleTopic={moduleData.topic}
+            trigger={
+              <Button variant="outline" size="sm" className="gap-1.5 shrink-0">
+                <FileDown className="size-3.5" />
+                导出到 Obsidian
+              </Button>
+            }
+          />
         </div>
         {moduleData.tags.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5 pl-10">
@@ -457,6 +469,7 @@ export default function ModuleDetailPage() {
           <KnowledgeItemList
             items={moduleData.items}
             moduleId={moduleId}
+            moduleTopic={moduleData.topic}
             favorites={favorites}
             selectedItemId={selectedItem?.id ?? null}
             onToggleFavorite={handleToggleFavorite}

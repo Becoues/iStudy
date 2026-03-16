@@ -6,6 +6,7 @@ import type { KnowledgeItemWithChildren } from "@/types/knowledge";
 interface KnowledgeItemListProps {
   items: KnowledgeItemWithChildren[];
   moduleId: string;
+  moduleTopic?: string;
   favorites: string[];
   selectedItemId: string | null;
   onToggleFavorite: (itemId: string, title: string) => void;
@@ -18,6 +19,7 @@ interface KnowledgeItemListProps {
 export function KnowledgeItemList({
   items,
   moduleId,
+  moduleTopic,
   favorites,
   selectedItemId,
   onToggleFavorite,
@@ -41,6 +43,7 @@ export function KnowledgeItemList({
           key={item.id}
           item={item}
           moduleId={moduleId}
+          moduleTopic={moduleTopic}
           isFavorite={favorites.includes(item.id)}
           isSelected={selectedItemId === item.id}
           onToggleFavorite={onToggleFavorite}
