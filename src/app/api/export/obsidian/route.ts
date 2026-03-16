@@ -4,7 +4,7 @@ import fs from "fs/promises";
 import path from "path";
 import prisma from "@/lib/prisma";
 
-const OBSIDIAN_DIR = "/Users/mac/Documents/Main/AI_talking";
+const OBSIDIAN_DIR = process.env.OBSIDIAN_DIR || "/Users/mac/Documents/Main/AI_talking";
 
 interface ExportRequest {
   moduleId: string;
