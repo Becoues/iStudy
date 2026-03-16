@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -102,6 +102,72 @@ export default function ModuleDetailPage() {
 
   // Follow-up
   const [followUpQuestion, setFollowUpQuestion] = useState<string | null>(null);
+
+  // Scroll spy — track which item is currently in view for TOC highlighting
+  const [activeItemId, setActiveItemId] = useState<string | null>(null);
+  const scrollSpyRef = useRef<IntersectionObserver | null>(null);
+
+  // Collect all item IDs from tree for scroll spy
+  const collectAllIds = useCallback(
+    (items: KnowledgeItemWithChildren[]): string[] => {
+      const ids: string[] = [];
+      for (const item of items) {
+        ids.push(item.id);
+        ids.push(...collectAllIds(item.children));
+      }
+      return ids;
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!moduleData) return;
+    const allIds = collectAllIds(moduleData.items);
+
+    // Track which items are currently intersecting and their ratio
+    const visibleItems = new Map<string, number>();
+
+    scrollSpyRef.current = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const id = entry.target.id.replace("knowledge-item-", "");
+          if (entry.isIntersecting) {
+            visibleItems.set(id, entry.intersectionRatio);
+          } else {
+            visibleItems.delete(id);
+          }
+        }
+        // Pick the item closest to top of viewport among visible items
+        let bestId: string | null = null;
+        let bestTop = Infinity;
+        for (const [id] of visibleItems) {
+          const el = document.getElementById(`knowledge-item-${id}`);
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            // Prefer items that are near the top of viewport
+            const dist = Math.abs(rect.top);
+            if (dist < bestTop) {
+              bestTop = dist;
+              bestId = id;
+            }
+          }
+        }
+        if (bestId) {
+          setActiveItemId(bestId);
+        }
+      },
+      { threshold: [0, 0.25, 0.5], rootMargin: "-10% 0px -60% 0px" }
+    );
+
+    for (const id of allIds) {
+      const el = document.getElementById(`knowledge-item-${id}`);
+      if (el) scrollSpyRef.current.observe(el);
+    }
+
+    return () => {
+      scrollSpyRef.current?.disconnect();
+    };
+  }, [moduleData, collectAllIds]);
 
   // Fetch module data
   const fetchModule = useCallback(async (silent = false) => {
@@ -430,7 +496,7 @@ export default function ModuleDetailPage() {
             <div className="p-2">
               <KnowledgeToc
                 items={moduleData.items}
-                selectedItemId={selectedItem?.id ?? null}
+                selectedItemId={activeItemId}
                 onSelectItem={handleSelectItem}
               />
             </div>

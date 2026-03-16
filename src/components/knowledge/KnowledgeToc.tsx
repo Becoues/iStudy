@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronRight, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import type { KnowledgeItemWithChildren } from "@/types/knowledge";
 
@@ -25,10 +25,19 @@ function TocItem({
   const [expanded, setExpanded] = useState(true);
   const hasChildren = item.children.length > 0;
   const isSelected = selectedItemId === item.id;
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Auto-scroll TOC sidebar to keep active item visible
+  useEffect(() => {
+    if (isSelected && buttonRef.current) {
+      buttonRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [isSelected]);
 
   return (
     <div>
       <button
+        ref={buttonRef}
         type="button"
         className={cn(
           "flex w-full items-center gap-1 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
