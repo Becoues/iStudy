@@ -46,12 +46,12 @@ function TocItem({
 
   return (
     <div>
-      <div className="group flex items-center">
+      <div className="group relative">
         <button
           ref={buttonRef}
           type="button"
           className={cn(
-            "flex flex-1 items-center gap-1 rounded-md px-2 py-1.5 text-left text-sm transition-colors min-w-0",
+            "flex w-full items-center gap-1 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
             isSelected
               ? "bg-primary/10 text-primary font-medium"
               : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
@@ -82,8 +82,8 @@ function TocItem({
           )}
           <span className="truncate">{item.content.title}</span>
         </button>
-        {/* Action buttons — visible on hover */}
-        <div className="flex shrink-0 items-center opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Action buttons — float over text on hover */}
+        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 rounded-md bg-background/90 backdrop-blur-sm shadow-sm border px-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
           {!isFirst && onMoveItem && (
             <button
               type="button"
