@@ -241,10 +241,8 @@ export async function POST(request: NextRequest) {
     // Sanitize filename
     const safeFilename = filename.replace(/[/\\:*?"<>|]/g, "_");
 
-    // Read Obsidian path from settings
-    const obsidianBase = settings?.obsidianPath || "/Users/mac/Documents/Main/AI_talking";
-    const obsidianFolder = settings?.obsidianFolder || "iStudy";
-    const obsidianDir = path.join(obsidianBase, obsidianFolder);
+    // Read Obsidian path from settings — write directly into obsidianPath, no subfolder
+    const obsidianDir = settings?.obsidianPath || "/Users/mac/Documents/Main/AI_talking";
 
     // Write to Obsidian directory
     await fs.mkdir(obsidianDir, { recursive: true });

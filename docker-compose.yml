@@ -7,7 +7,5 @@ services:
     volumes:
       - ./data:/app/data
       - ./public/images/knowledge:/app/public/images/knowledge
-      - /Users/mac/Documents/Main/AI_talking:/app/obsidian
-    environment:
-      - OBSIDIAN_DIR=/app/obsidian
+      - /Users/mac/Documents/Main/AI_talking:/Users/mac/Documents/Main/AI_talking
     restart: unless-stopped
