@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, BookOpen, ArrowRight, Loader2 } from "lucide-react";
+import { Sparkles, BookOpen, ArrowRight, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -118,6 +118,18 @@ export default function Home() {
     });
   }
 
+  async function handleDeleteModule(e: React.MouseEvent, moduleId: string) {
+    e.stopPropagation();
+    if (!confirm("确定要删除这个知识模块吗？删除后无法恢复。")) return;
+    try {
+      const res = await fetch(`/api/modules/${moduleId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("删除失败");
+      setModules((prev) => prev.filter((m) => m.id !== moduleId));
+    } catch {
+      alert("删除失败，请重试");
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
       {/* Hero Section */}
@@ -231,7 +243,17 @@ export default function Home() {
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center justify-between text-base">
                     <span className="truncate">{mod.topic}</span>
-                    <ArrowRight className="h-4 w-4 flex-shrink-0 text-gray-400" />
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        className="p-1 rounded-md text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        onClick={(e) => handleDeleteModule(e, mod.id)}
+                        title="删除模块"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                      <ArrowRight className="h-4 w-4 text-gray-400" />
+                    </div>
                   </CardTitle>
                   <CardDescription className="text-xs text-gray-400">
                     {formatDate(mod.createdAt)}
