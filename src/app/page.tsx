@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, BookOpen, ArrowRight, Loader2, Trash2 } from "lucide-react";
+import { Sparkles, BookOpen, ArrowRight, Loader2, Trash2, Hash, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,6 +17,26 @@ import { useStreamResponse } from "@/hooks/useStreamResponse";
 import { parseGenerationResponse } from "@/lib/parseKnowledge";
 import type { ModuleListItem } from "@/types/knowledge";
 
+// Persist generating state across navigation
+const GENERATING_KEY = "istudy-generating";
+
+function getGeneratingState(): { topic: string; startedAt: number } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(GENERATING_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    // Expire after 5 minutes
+    if (Date.now() - parsed.startedAt > 5 * 60 * 1000) {
+      localStorage.removeItem(GENERATING_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 export default function Home() {
   const router = useRouter();
   const [topic, setTopic] = useState("");
@@ -25,10 +45,18 @@ export default function Home() {
   const [modulesError, setModulesError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [generatingTopic, setGeneratingTopic] = useState<string | null>(null);
 
   const { streamText, isStreaming, error: streamError, startStream, reset } = useStreamResponse();
-  const streamContainerRef = useRef<HTMLDivElement>(null);
   const prevStreamingRef = useRef(false);
+
+  // Restore generating state on mount
+  useEffect(() => {
+    const state = getGeneratingState();
+    if (state) {
+      setGeneratingTopic(state.topic);
+    }
+  }, []);
 
   // Fetch recent modules on mount
   useEffect(() => {
@@ -46,13 +74,6 @@ export default function Home() {
     }
     fetchModules();
   }, []);
-
-  // Auto-scroll streaming container
-  useEffect(() => {
-    if (streamContainerRef.current && isStreaming) {
-      streamContainerRef.current.scrollTop = streamContainerRef.current.scrollHeight;
-    }
-  }, [streamText, isStreaming]);
 
   // When streaming completes, parse and save
   useEffect(() => {
@@ -81,7 +102,7 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          topic,
+          topic: generatingTopic || topic,
           tags: parsed.tags,
           items,
         }),
@@ -92,9 +113,13 @@ export default function Home() {
       const saved = await res.json();
       reset();
       setTopic("");
+      setGeneratingTopic(null);
+      localStorage.removeItem(GENERATING_KEY);
       router.push(`/modules/${saved.id}`);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "保存失败，请重试");
+      setGeneratingTopic(null);
+      localStorage.removeItem(GENERATING_KEY);
     } finally {
       setSaving(false);
     }
@@ -104,10 +129,11 @@ export default function Home() {
     e.preventDefault();
     if (!topic.trim() || isStreaming) return;
     setSaveError(null);
-    startStream("/api/knowledge/generate", { topic: topic.trim() });
+    const t = topic.trim();
+    setGeneratingTopic(t);
+    localStorage.setItem(GENERATING_KEY, JSON.stringify({ topic: t, startedAt: Date.now() }));
+    startStream("/api/knowledge/generate", { topic: t });
   }
-
-  const showStreamView = isStreaming || streamText;
 
   function formatDate(dateStr: string) {
     const date = new Date(dateStr);
@@ -129,6 +155,14 @@ export default function Home() {
       alert("删除失败，请重试");
     }
   }
+
+  // Currently generating or have a pending generation?
+  const showGeneratingCard = isStreaming || saving || (generatingTopic && !streamError);
+
+  // Progress indicator: count parsed items so far from stream
+  const parsedItemCount = streamText
+    ? (streamText.match(/"title"\s*:/g) || []).length
+    : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
@@ -181,30 +215,6 @@ export default function Home() {
         )}
       </section>
 
-      {/* Streaming / Generating View */}
-      {showStreamView && (
-        <section className="mx-auto mb-12 w-full max-w-3xl px-4">
-          <div className="flex items-center gap-2 mb-3 text-sm text-gray-500">
-            {(isStreaming || saving) && (
-              <Loader2 className="h-4 w-4 animate-spin text-violet-500" />
-            )}
-            <span>
-              {saving
-                ? "正在保存知识模块..."
-                : isStreaming
-                  ? "正在为您生成知识点..."
-                  : "生成完成"}
-            </span>
-          </div>
-          <div
-            ref={streamContainerRef}
-            className="rounded-lg bg-gray-950 p-4 font-mono text-sm text-emerald-400 max-h-[400px] overflow-y-auto shadow-lg"
-          >
-            <pre className="whitespace-pre-wrap break-words">{streamText || " "}</pre>
-          </div>
-        </section>
-      )}
-
       {/* Recent Modules Section */}
       <section className="mx-auto w-full max-w-5xl px-4 pb-20">
         <div className="mb-6 flex items-center gap-2">
@@ -225,15 +235,52 @@ export default function Home() {
           </p>
         )}
 
-        {!modulesLoading && !modulesError && modules.length === 0 && (
+        {!modulesLoading && !modulesError && modules.length === 0 && !showGeneratingCard && (
           <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 py-16 text-gray-400">
             <BookOpen className="mb-3 h-10 w-10" />
             <p>还没有学习记录，开始你的第一个主题吧！</p>
           </div>
         )}
 
-        {!modulesLoading && !modulesError && modules.length > 0 && (
+        {(!modulesLoading || showGeneratingCard) && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Generating card — always first */}
+            {showGeneratingCard && (
+              <Card className="relative overflow-hidden border-violet-200 bg-gradient-to-br from-violet-50 to-blue-50">
+                {/* Animated progress bar */}
+                <div className="absolute inset-x-0 top-0 h-1 bg-violet-100">
+                  <div
+                    className="h-full bg-gradient-to-r from-violet-500 to-blue-500 animate-pulse rounded-r"
+                    style={{ width: saving ? "90%" : `${Math.min(parsedItemCount * 15, 80)}%`, transition: "width 0.5s ease" }}
+                  />
+                </div>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Loader2 className="h-4 w-4 animate-spin text-violet-500 shrink-0" />
+                    <span className="truncate">{generatingTopic}</span>
+                  </CardTitle>
+                  <CardDescription className="text-xs text-violet-500">
+                    {saving ? "正在保存..." : isStreaming ? "AI 正在生成知识体系..." : "准备中..."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="min-h-[3.25rem] mb-2 flex flex-wrap gap-1 content-start">
+                    {parsedItemCount > 0 && (
+                      <Badge variant="secondary" className="text-xs bg-violet-100 text-violet-600">
+                        已识别 {parsedItemCount} 个知识点
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-violet-400 flex items-center gap-1">
+                      <Sparkles className="h-3 w-3" />
+                      生成中...
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {modules.map((mod) => (
               <Card
                 key={mod.id}
@@ -255,21 +302,29 @@ export default function Home() {
                       <ArrowRight className="h-4 w-4 text-gray-400" />
                     </div>
                   </CardTitle>
-                  <CardDescription className="text-xs text-gray-400">
+                  <CardDescription className="text-xs text-gray-400 flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
                     {formatDate(mod.createdAt)}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="mb-2 flex flex-wrap gap-1">
-                    {mod.tags.slice(0, 4).map((tag) => (
+                  {/* Fixed 2-row tag area for alignment */}
+                  <div className="min-h-[3.25rem] mb-2 flex flex-wrap gap-1 content-start">
+                    {mod.tags.slice(0, 5).map((tag) => (
                       <Badge key={tag} variant="secondary" className="text-xs">
                         {tag}
                       </Badge>
                     ))}
                   </div>
-                  <p className="text-xs text-gray-500">
-                    {mod.itemCount} 个知识点
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                      <Hash className="h-3 w-3" />
+                      {mod.itemCount} 个知识点
+                    </p>
+                    <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-200 bg-emerald-50">
+                      已完成
+                    </Badge>
+                  </div>
                 </CardContent>
               </Card>
             ))}
