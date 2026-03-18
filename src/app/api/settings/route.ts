@@ -31,7 +31,7 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { provider, apiKey, model } = body;
+    const { provider, apiKey, model, obsidianPath, obsidianFolder } = body;
 
     // If apiKey contains "****", keep the existing key
     let finalApiKey = apiKey;
@@ -46,12 +46,16 @@ export async function PUT(request: NextRequest) {
         ...(provider !== undefined && { provider }),
         ...(finalApiKey !== undefined && { apiKey: finalApiKey }),
         ...(model !== undefined && { model }),
+        ...(obsidianPath !== undefined && { obsidianPath }),
+        ...(obsidianFolder !== undefined && { obsidianFolder }),
       },
       create: {
         id: 1,
         provider: provider || "DeerAPI",
         apiKey: finalApiKey || "",
         model: model || "gpt-4o",
+        obsidianPath: obsidianPath || "/Users/mac/Documents/Main/AI_talking",
+        obsidianFolder: obsidianFolder || "iStudy",
       },
     });
 

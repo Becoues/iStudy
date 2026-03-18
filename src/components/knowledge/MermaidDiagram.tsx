@@ -6,6 +6,17 @@ interface MermaidDiagramProps {
   code: string;
 }
 
+function sanitizeMermaidCode(raw: string): string {
+  let code = raw.trim();
+  // Strip markdown fences
+  code = code.replace(/^```mermaid\s*/i, "").replace(/```\s*$/, "").trim();
+  // Remove HTML <br> tags
+  code = code.replace(/<br\s*\/?>/gi, "\n");
+  // Remove empty lines
+  code = code.split("\n").filter((l) => l.trim().length > 0).join("\n");
+  return code;
+}
+
 export function MermaidDiagram({ code }: MermaidDiagramProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState(false);
@@ -17,10 +28,28 @@ export function MermaidDiagram({ code }: MermaidDiagramProps) {
     async function renderDiagram() {
       try {
         const mermaid = (await import("mermaid")).default;
-        mermaid.initialize({ startOnLoad: false, theme: "default" });
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: "default",
+          suppressErrorRendering: true,
+        });
+
+        const sanitized = sanitizeMermaidCode(code);
+        if (!sanitized) {
+          if (!cancelled) setError(true);
+          return;
+        }
+
+        // Pre-validate before rendering to avoid error popups
+        try {
+          await mermaid.parse(sanitized);
+        } catch {
+          if (!cancelled) setError(true);
+          return;
+        }
 
         const id = `mermaid-${uniqueId}`;
-        const { svg } = await mermaid.render(id, code);
+        const { svg } = await mermaid.render(id, sanitized);
 
         if (!cancelled && containerRef.current) {
           containerRef.current.innerHTML = svg;
@@ -40,13 +69,7 @@ export function MermaidDiagram({ code }: MermaidDiagramProps) {
     };
   }, [code, uniqueId]);
 
-  if (error) {
-    return (
-      <div className="rounded-lg border bg-muted/30 p-4 text-center text-sm text-muted-foreground">
-        图表渲染失败
-      </div>
-    );
-  }
+  if (error) return null;
 
   return (
     <div

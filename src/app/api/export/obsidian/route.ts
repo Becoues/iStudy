@@ -4,8 +4,6 @@ import fs from "fs/promises";
 import path from "path";
 import prisma from "@/lib/prisma";
 
-const OBSIDIAN_DIR = process.env.OBSIDIAN_DIR || "/Users/mac/Documents/Main/AI_talking";
-
 interface ExportRequest {
   moduleId: string;
   itemId?: string;
@@ -159,6 +157,9 @@ export async function POST(request: NextRequest) {
     const tags: string[] = JSON.parse(module.tags);
     const tree = buildTree(module.items as unknown as TreeItem[]);
 
+    // Fetch settings once for both AI polish and Obsidian path
+    const settings = await prisma.settings.findFirst();
+
     let targetItems: TreeItem[];
     let filename: string;
 
@@ -204,7 +205,6 @@ export async function POST(request: NextRequest) {
 
     // AI Polish
     if (aiPolish) {
-      const settings = await prisma.settings.findFirst();
       if (!settings?.apiKey) {
         return NextResponse.json(
           { error: "请先在设置中配置 API Key" },
@@ -241,9 +241,14 @@ export async function POST(request: NextRequest) {
     // Sanitize filename
     const safeFilename = filename.replace(/[/\\:*?"<>|]/g, "_");
 
+    // Read Obsidian path from settings
+    const obsidianBase = settings?.obsidianPath || "/Users/mac/Documents/Main/AI_talking";
+    const obsidianFolder = settings?.obsidianFolder || "iStudy";
+    const obsidianDir = path.join(obsidianBase, obsidianFolder);
+
     // Write to Obsidian directory
-    await fs.mkdir(OBSIDIAN_DIR, { recursive: true });
-    const filePath = path.join(OBSIDIAN_DIR, safeFilename);
+    await fs.mkdir(obsidianDir, { recursive: true });
+    const filePath = path.join(obsidianDir, safeFilename);
     await fs.writeFile(filePath, content, "utf-8");
 
     return NextResponse.json({

@@ -23,6 +23,8 @@ type FeedbackType = "success" | "error" | null;
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("gpt-4o");
+  const [obsidianPath, setObsidianPath] = useState("/Users/mac/Documents/Main/AI_talking");
+  const [obsidianFolder, setObsidianFolder] = useState("iStudy");
   const [showKey, setShowKey] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -38,6 +40,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         const data = await res.json();
         if (data.apiKey) setApiKey(data.apiKey);
         if (data.model) setModel(data.model);
+        if (data.obsidianPath) setObsidianPath(data.obsidianPath);
+        if (data.obsidianFolder) setObsidianFolder(data.obsidianFolder);
       }
     } catch {
       // Settings may not exist yet
@@ -59,7 +63,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       const res = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey, model }),
+        body: JSON.stringify({ apiKey, model, obsidianPath, obsidianFolder }),
       });
       if (res.ok) {
         setFeedback({ type: "success", message: "设置已保存" });
@@ -147,6 +151,43 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               onChange={(e) => setModel(e.target.value)}
               placeholder="gpt-4o"
             />
+          </div>
+
+          {/* Obsidian 配置 */}
+          <div className="border-t pt-4 mt-2">
+            <p className="text-sm font-medium text-foreground mb-3">Obsidian 同步</p>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor="settings-obsidian-path"
+                  className="text-xs text-muted-foreground"
+                >
+                  Vault 路径
+                </label>
+                <Input
+                  id="settings-obsidian-path"
+                  type="text"
+                  value={obsidianPath}
+                  onChange={(e) => setObsidianPath(e.target.value)}
+                  placeholder="/Users/mac/Documents/Main/AI_talking"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor="settings-obsidian-folder"
+                  className="text-xs text-muted-foreground"
+                >
+                  子文件夹名
+                </label>
+                <Input
+                  id="settings-obsidian-folder"
+                  type="text"
+                  value={obsidianFolder}
+                  onChange={(e) => setObsidianFolder(e.target.value)}
+                  placeholder="iStudy"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Feedback message */}

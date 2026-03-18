@@ -52,9 +52,11 @@ model Comment {
 }
 
 model Settings {
-  id        Int      @id @default(1)
-  provider  String   @default("DeerAPI")
-  apiKey    String   @default("")
-  model     String   @default("gpt-4o")
-  updatedAt DateTime @updatedAt
+  id             Int      @id @default(1)
+  provider       String   @default("DeerAPI")
+  apiKey         String   @default("")
+  model          String   @default("gpt-4o")
+  obsidianPath   String   @default("/Users/mac/Documents/Main/AI_talking")
+  obsidianFolder String   @default("iStudy")
+  updatedAt      DateTime @updatedAt
 }
