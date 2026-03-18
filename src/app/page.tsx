@@ -46,6 +46,7 @@ export default function Home() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [generatingTopic, setGeneratingTopic] = useState<string | null>(null);
+  const [genFailed, setGenFailed] = useState(false);
 
   const { streamText, isStreaming, error: streamError, startStream, reset } = useStreamResponse();
   const prevStreamingRef = useRef(false);
@@ -118,7 +119,7 @@ export default function Home() {
       router.push(`/modules/${saved.id}`);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "保存失败，请重试");
-      setGeneratingTopic(null);
+      setGenFailed(true);
       localStorage.removeItem(GENERATING_KEY);
     } finally {
       setSaving(false);
@@ -129,6 +130,7 @@ export default function Home() {
     e.preventDefault();
     if (!topic.trim() || isStreaming) return;
     setSaveError(null);
+    setGenFailed(false);
     const t = topic.trim();
     setGeneratingTopic(t);
     localStorage.setItem(GENERATING_KEY, JSON.stringify({ topic: t, startedAt: Date.now() }));
@@ -157,7 +159,7 @@ export default function Home() {
   }
 
   // Currently generating or have a pending generation?
-  const showGeneratingCard = isStreaming || saving || (generatingTopic && !streamError);
+  const showGeneratingCard = isStreaming || saving || (generatingTopic && !streamError) || genFailed;
 
   // Progress indicator: count parsed items so far from stream
   const parsedItemCount = streamText
@@ -246,36 +248,53 @@ export default function Home() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {/* Generating card — always first */}
             {showGeneratingCard && (
-              <Card className="relative overflow-hidden border-violet-200 bg-gradient-to-br from-violet-50 to-blue-50">
+              <Card className={`relative overflow-hidden ${genFailed || streamError ? "border-red-200 bg-gradient-to-br from-red-50 to-orange-50" : "border-violet-200 bg-gradient-to-br from-violet-50 to-blue-50"}`}>
                 {/* Animated progress bar */}
-                <div className="absolute inset-x-0 top-0 h-1 bg-violet-100">
-                  <div
-                    className="h-full bg-gradient-to-r from-violet-500 to-blue-500 animate-pulse rounded-r"
-                    style={{ width: saving ? "90%" : `${Math.min(parsedItemCount * 15, 80)}%`, transition: "width 0.5s ease" }}
-                  />
-                </div>
+                {!genFailed && !streamError && (
+                  <div className="absolute inset-x-0 top-0 h-1 bg-violet-100">
+                    <div
+                      className="h-full bg-gradient-to-r from-violet-500 to-blue-500 animate-pulse rounded-r"
+                      style={{ width: saving ? "90%" : `${Math.min(parsedItemCount * 15, 80)}%`, transition: "width 0.5s ease" }}
+                    />
+                  </div>
+                )}
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-base">
-                    <Loader2 className="h-4 w-4 animate-spin text-violet-500 shrink-0" />
+                    {genFailed || streamError ? (
+                      <span className="text-red-500 shrink-0">✕</span>
+                    ) : (
+                      <Loader2 className="h-4 w-4 animate-spin text-violet-500 shrink-0" />
+                    )}
                     <span className="truncate">{generatingTopic}</span>
                   </CardTitle>
-                  <CardDescription className="text-xs text-violet-500">
-                    {saving ? "正在保存..." : isStreaming ? "AI 正在生成知识体系..." : "准备中..."}
+                  <CardDescription className={`text-xs ${genFailed || streamError ? "text-red-500" : "text-violet-500"}`}>
+                    {genFailed ? (saveError || "生成失败") : streamError ? streamError : saving ? "正在保存..." : isStreaming ? "AI 正在生成知识体系..." : "准备中..."}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="min-h-[3.25rem] mb-2 flex flex-wrap gap-1 content-start">
-                    {parsedItemCount > 0 && (
+                    {parsedItemCount > 0 && !genFailed && (
                       <Badge variant="secondary" className="text-xs bg-violet-100 text-violet-600">
                         已识别 {parsedItemCount} 个知识点
                       </Badge>
                     )}
                   </div>
                   <div className="flex items-center justify-between">
-                    <p className="text-xs text-violet-400 flex items-center gap-1">
-                      <Sparkles className="h-3 w-3" />
-                      生成中...
-                    </p>
+                    {genFailed || streamError ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-red-500 hover:text-red-600 px-2 h-7"
+                        onClick={() => { setGeneratingTopic(null); setGenFailed(false); setSaveError(null); reset(); }}
+                      >
+                        关闭
+                      </Button>
+                    ) : (
+                      <p className="text-xs text-violet-400 flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" />
+                        生成中...
+                      </p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
