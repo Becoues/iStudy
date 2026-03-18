@@ -107,6 +107,38 @@ export default function ModuleDetailPage() {
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const scrollSpyRef = useRef<IntersectionObserver | null>(null);
 
+  // TOC resizable width
+  const [tocWidth, setTocWidth] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("toc-width");
+      return saved ? Number(saved) : 240;
+    }
+    return 240;
+  });
+  const tocDragging = useRef(false);
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!tocDragging.current) return;
+      const newWidth = Math.min(Math.max(e.clientX, 160), 500);
+      setTocWidth(newWidth);
+    };
+    const onMouseUp = () => {
+      if (tocDragging.current) {
+        tocDragging.current = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        localStorage.setItem("toc-width", String(tocWidth));
+      }
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [tocWidth]);
+
   // Collect all item IDs from tree for scroll spy
   const collectAllIds = useCallback(
     (items: KnowledgeItemWithChildren[]): string[] => {
@@ -520,9 +552,12 @@ export default function ModuleDetailPage() {
 
       {/* Content area: three-column layout */}
       <div className="flex">
-        {/* Left: TOC sidebar — sticky */}
-        <div className="hidden lg:block shrink-0">
-          <div className="sticky top-0 h-screen overflow-auto border-r bg-background w-[240px]">
+        {/* Left: TOC sidebar — sticky, resizable */}
+        <div className="hidden lg:block shrink-0 relative">
+          <div
+            className="sticky top-0 h-screen overflow-auto border-r bg-background"
+            style={{ width: `${tocWidth}px` }}
+          >
             <div className="border-b px-4 py-3">
               <h2 className="text-sm font-semibold text-foreground">目录</h2>
             </div>
@@ -536,6 +571,16 @@ export default function ModuleDetailPage() {
               />
             </div>
           </div>
+          {/* Drag handle */}
+          <div
+            className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 transition-colors z-10"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              tocDragging.current = true;
+              document.body.style.cursor = "col-resize";
+              document.body.style.userSelect = "none";
+            }}
+          />
         </div>
 
         {/* Middle: Knowledge items */}
