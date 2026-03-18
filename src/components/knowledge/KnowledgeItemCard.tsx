@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Trash2,
   FileDown,
+  ExternalLink,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -376,6 +377,28 @@ export function KnowledgeItemCard({
 
           {/* Quiz section */}
           <QuizSection quiz={item.content.quiz} />
+
+          {/* References */}
+          {item.content.references && item.content.references.length > 0 && (
+            <div className="flex flex-col gap-1.5 pt-2 border-t">
+              <span className="text-xs font-medium text-muted-foreground">参考链接</span>
+              <div className="flex flex-wrap gap-2">
+                {item.content.references.map((ref, i) => (
+                  <a
+                    key={i}
+                    href={ref.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ExternalLink className="size-3 shrink-0" />
+                    {ref.title}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Expand deeper button */}
           {item.depth < maxDepth && (

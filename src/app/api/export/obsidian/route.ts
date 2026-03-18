@@ -24,6 +24,7 @@ interface ParsedItem {
     explanation: string;
   };
   imageUrl?: string;
+  references?: { title: string; url: string }[];
 }
 
 interface TreeItem {
@@ -105,6 +106,15 @@ function itemToMarkdown(
     lines.push(`> > **${parsed.quiz.answer}**`);
     if (parsed.quiz.explanation) {
       lines.push(`> > ${parsed.quiz.explanation}`);
+    }
+    lines.push("");
+  }
+
+  // References
+  if (parsed.references && parsed.references.length > 0) {
+    lines.push("**参考链接：**");
+    for (const ref of parsed.references) {
+      lines.push(`- [${ref.title}](${ref.url})`);
     }
     lines.push("");
   }

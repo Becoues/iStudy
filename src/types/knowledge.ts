@@ -6,6 +6,11 @@ export interface KnowledgeQuiz {
   explanation: string;
 }
 
+export interface KnowledgeReference {
+  title: string;
+  url: string;
+}
+
 export interface KnowledgeItemData {
   title: string;
   difficulty: "basic" | "intermediate" | "advanced";
@@ -14,6 +19,7 @@ export interface KnowledgeItemData {
   mermaid: string | null;
   quiz: KnowledgeQuiz;
   imageUrl?: string;
+  references?: KnowledgeReference[];
 }
 
 export interface GenerationResponse {

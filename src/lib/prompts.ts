@@ -43,6 +43,10 @@ export function getSystemPrompt(): string {
    - **hint** (string)：提示信息，引导学习者思考方向
    - **answer** (string)：正确答案，如 "A"
    - **explanation** (string)：答案解释，说明为什么选这个答案，以及为什么其他选项不对
+7. **references** (array)：2-4 个与该知识点最相关的参考链接，用于延伸阅读和增强可信度
+   - 每个元素包含 **title** (string) 和 **url** (string)
+   - 优先选择官方文档、权威教程、Wikipedia、知名技术博客等可靠来源
+   - URL 必须是真实存在的完整链接
 
 ## 标签提取
 
@@ -67,7 +71,10 @@ export function getSystemPrompt(): string {
         "hint": "提示信息",
         "answer": "A",
         "explanation": "答案解释"
-      }
+      },
+      "references": [
+        {"title": "参考文档标题", "url": "https://example.com/doc"}
+      ]
     }
   ]
 }
@@ -134,6 +141,9 @@ export function getExpandSystemPrompt(): string {
    - 不要在外层加 \`\`\`mermaid 标记
 6. **quiz** (object)：选择题测验
    - question, options (4个), hint, answer, explanation
+7. **references** (array)：2-4 个参考链接
+   - 每个元素包含 **title** (string) 和 **url** (string)
+   - 优先选择官方文档、权威教程等可靠来源
 
 ## 输出格式
 
@@ -153,7 +163,10 @@ export function getExpandSystemPrompt(): string {
         "hint": "提示信息",
         "answer": "B",
         "explanation": "答案解释"
-      }
+      },
+      "references": [
+        {"title": "参考文档标题", "url": "https://example.com/doc"}
+      ]
     }
   ]
 }
