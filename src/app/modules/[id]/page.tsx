@@ -381,6 +381,39 @@ export default function ModuleDetailPage() {
     [editingContent, selectedItem, fetchComments]
   );
 
+  // Handle delete item
+  const handleDeleteItem = useCallback(
+    async (itemId: string) => {
+      if (!confirm("确定要删除这个知识要点吗？其子项也会一并删除，且无法恢复。")) return;
+      try {
+        const res = await fetch(`/api/items/${itemId}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("删除失败");
+        await fetchModule(true);
+      } catch {
+        alert("删除失败，请重试");
+      }
+    },
+    [fetchModule]
+  );
+
+  // Handle move item
+  const handleMoveItem = useCallback(
+    async (itemId: string, direction: "up" | "down") => {
+      try {
+        const res = await fetch(`/api/items/${itemId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ direction }),
+        });
+        if (!res.ok) throw new Error("移动失败");
+        await fetchModule(true);
+      } catch {
+        alert("移动失败，请重试");
+      }
+    },
+    [fetchModule]
+  );
+
   // Handle follow-up question
   const handleFollowUp = useCallback(
     async (item: KnowledgeItemWithChildren, question: string) => {
@@ -498,6 +531,8 @@ export default function ModuleDetailPage() {
                 items={moduleData.items}
                 selectedItemId={activeItemId}
                 onSelectItem={handleSelectItem}
+                onDeleteItem={handleDeleteItem}
+                onMoveItem={handleMoveItem}
               />
             </div>
           </div>
