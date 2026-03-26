@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Bookmark,
   MessageSquare,
+  MessageCircle,
   Send,
   Trash2,
   Pencil,
@@ -16,11 +17,14 @@ import {
   FileDown,
 } from "lucide-react";
 import { useFavorites } from "@/hooks/useFavorites";
-import { useStreamResponse } from "@/hooks/useStreamResponse";
+import { useTaskQueue } from "@/hooks/useTaskQueue";
+import { useTaskStore } from "@/lib/task-store";
 import { parseExpansionResponse } from "@/lib/parseKnowledge";
+import { insertItemIntoTree } from "@/lib/tree-utils";
 import { KnowledgeItemList } from "@/components/knowledge/KnowledgeItemList";
 import { KnowledgeToc } from "@/components/knowledge/KnowledgeToc";
-import { FollowUpFab } from "@/components/knowledge/FollowUpFab";
+import { ChatPanel } from "@/components/chat/ChatPanel";
+import { TaskQueueFab } from "@/components/task/TaskQueueFab";
 import { ExportObsidianDialog } from "@/components/knowledge/ExportObsidianDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -79,10 +83,8 @@ export default function ModuleDetailPage() {
   const [selectedItem, setSelectedItem] =
     useState<KnowledgeItemWithChildren | null>(null);
 
-  // Expansion state
-  const [expandingItemId, setExpandingItemId] = useState<string | null>(null);
-  const { streamText, isStreaming, error: streamError, startStream, reset: resetStream } =
-    useStreamResponse();
+  // Task queue for expansion (SC003 — replaces expandingItemId singleton lock)
+  const { enqueue, tasks } = useTaskQueue();
 
   // Favorites
   const { favorites, toggleFavorite, isFavorite } = useFavorites(moduleId);
@@ -97,11 +99,14 @@ export default function ModuleDetailPage() {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState("");
 
+  // Topic & tag editing
+  const [editingTopic, setEditingTopic] = useState(false);
+  const [editingTopicValue, setEditingTopicValue] = useState("");
+  const [editingTag, setEditingTag] = useState(false);
+  const [editingTagValue, setEditingTagValue] = useState("");
+
   // Right panel tab
   const [activeTab, setActiveTab] = useState("favorites");
-
-  // Follow-up
-  const [followUpQuestion, setFollowUpQuestion] = useState<string | null>(null);
 
   // Scroll spy — track which item is currently in view for TOC highlighting
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
@@ -117,11 +122,27 @@ export default function ModuleDetailPage() {
   });
   const tocDragging = useRef(false);
 
+  // Right panel resizable width
+  const [rightPanelWidth, setRightPanelWidth] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("right-panel-width");
+      return saved ? Number(saved) : 280;
+    }
+    return 280;
+  });
+  const rightDragging = useRef(false);
+
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
-      if (!tocDragging.current) return;
-      const newWidth = Math.min(Math.max(e.clientX, 160), 500);
-      setTocWidth(newWidth);
+      if (tocDragging.current) {
+        const newWidth = Math.min(Math.max(e.clientX, 160), 500);
+        setTocWidth(newWidth);
+      }
+      if (rightDragging.current) {
+        // Right panel: width = viewport width - mouseX
+        const newWidth = Math.min(Math.max(window.innerWidth - e.clientX, 280), 500);
+        setRightPanelWidth(newWidth);
+      }
     };
     const onMouseUp = () => {
       if (tocDragging.current) {
@@ -130,6 +151,12 @@ export default function ModuleDetailPage() {
         document.body.style.userSelect = "";
         localStorage.setItem("toc-width", String(tocWidth));
       }
+      if (rightDragging.current) {
+        rightDragging.current = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        localStorage.setItem("right-panel-width", String(rightPanelWidth));
+      }
     };
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
@@ -137,7 +164,7 @@ export default function ModuleDetailPage() {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
     };
-  }, [tocWidth]);
+  }, [tocWidth, rightPanelWidth]);
 
   // Collect all item IDs from tree for scroll spy
   const collectAllIds = useCallback(
@@ -272,32 +299,75 @@ export default function ModuleDetailPage() {
     [toggleFavorite]
   );
 
-  // Handle knowledge expansion
-  const handleExpand = useCallback(
-    async (item: KnowledgeItemWithChildren) => {
-      if (isStreaming || expandingItemId) return;
-
-      setExpandingItemId(item.id);
-      resetStream();
-
-      await startStream("/api/knowledge/expand", {
-        title: item.content.title,
-        summary: item.content.summary,
-        difficulty: item.content.difficulty,
-        details: item.content.details,
+  // SC002: Local state insert callback — adds new items to tree without fetchModule
+  const handleItemCreated = useCallback(
+    (newItem: KnowledgeItemWithChildren) => {
+      setModuleData((prev) => {
+        if (!prev) return prev;
+        return { ...prev, items: insertItemIntoTree(prev.items, newItem, newItem.parentId) };
       });
     },
-    [isStreaming, expandingItemId, startStream, resetStream]
+    []
   );
 
-  // When streaming completes, save the new items
+  // SC002: Local state move callback — updates tree position without fetchModule
+  const handleItemMoved = useCallback(
+    (itemId: string, newParentId: string | null, newIndex: number) => {
+      // Import dynamically to keep top-level imports minimal (moveItemInTree is less frequently used)
+      import("@/lib/tree-utils").then(({ moveItemInTree }) => {
+        setModuleData((prev) => {
+          if (!prev) return prev;
+          return { ...prev, items: moveItemInTree(prev.items, itemId, newParentId, newIndex) };
+        });
+      });
+    },
+    []
+  );
+
+  // SC003: Handle knowledge expansion via task queue (replaces direct stream)
+  const handleExpand = useCallback(
+    (item: KnowledgeItemWithChildren) => {
+      // Check if there's already an active task for this item
+      const existingTask = useTaskStore.getState().getTaskByTargetItem(item.id);
+      if (existingTask) return;
+
+      enqueue({
+        type: "expand",
+        label: "深入了解: " + item.content.title,
+        payload: {
+          title: item.content.title,
+          summary: item.content.summary,
+          difficulty: item.content.difficulty,
+          details: item.content.details,
+        },
+        targetItemId: item.id,
+        moduleId,
+      });
+    },
+    [enqueue, moduleId]
+  );
+
+  // SC003: Watch task store for completed expand/followup tasks — save results using local state insert
+  const completedTasksRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
-    if (!isStreaming && streamText && expandingItemId && !streamError) {
-      const saveExpansion = async () => {
+    const relevantTasks = tasks.filter(
+      (t) =>
+        (t.type === "expand" || t.type === "followup") &&
+        t.moduleId === moduleId &&
+        t.status === "completed" &&
+        t.result &&
+        !completedTasksRef.current.has(t.id)
+    );
+
+    for (const task of relevantTasks) {
+      completedTasksRef.current.add(task.id);
+
+      const saveExpansionFromTask = async () => {
         try {
-          const parsed = parseExpansionResponse(streamText);
+          const parsed = parseExpansionResponse(task.result!);
           const parentItem = moduleData
-            ? findItemById(moduleData.items, expandingItemId)
+            ? findItemById(moduleData.items, task.targetItemId!)
             : null;
           const parentDepth = parentItem?.depth ?? 0;
 
@@ -313,7 +383,7 @@ export default function ModuleDetailPage() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              parentId: expandingItemId,
+              parentId: task.targetItemId,
               items: itemsToSave,
             }),
           });
@@ -322,29 +392,66 @@ export default function ModuleDetailPage() {
             throw new Error("保存展开内容失败");
           }
 
-          // Re-fetch module data to show new children
-          await fetchModule();
+          // SC002: Use local state insert instead of fetchModule to prevent card collapse
+          const createdItems = await res.json();
+          setModuleData((prev) => {
+            if (!prev) return prev;
+            let newItems = prev.items;
+            for (const created of createdItems) {
+              // Convert Prisma response to KnowledgeItemWithChildren
+              const childItem: KnowledgeItemWithChildren = {
+                id: created.id,
+                moduleId: created.moduleId,
+                parentId: created.parentId,
+                orderIndex: created.orderIndex,
+                title: created.title,
+                difficulty: created.difficulty,
+                content: JSON.parse(created.content),
+                depth: created.depth,
+                children: [],
+                commentCount: 0,
+              };
+              newItems = insertItemIntoTree(newItems, childItem, childItem.parentId);
+            }
+            return { ...prev, items: newItems };
+          });
         } catch (err) {
           console.error("Failed to save expansion:", err);
-        } finally {
-          setExpandingItemId(null);
-          setFollowUpQuestion(null);
-          resetStream();
         }
       };
 
-      saveExpansion();
+      saveExpansionFromTask();
     }
-  }, [
-    isStreaming,
-    streamText,
-    expandingItemId,
-    streamError,
-    moduleId,
-    moduleData,
-    fetchModule,
-    resetStream,
-  ]);
+  }, [tasks, moduleId, moduleData]);
+
+  // Derive per-item expanding state from task store
+  const getExpandingItemId = useCallback((): string | null => {
+    const runningTask = tasks.find(
+      (t) =>
+        (t.type === "expand" || t.type === "followup") &&
+        t.moduleId === moduleId &&
+        (t.status === "running" || t.status === "queued")
+    );
+    return runningTask?.targetItemId ?? null;
+  }, [tasks, moduleId]);
+
+  const expandingItemId = getExpandingItemId();
+
+  // Check if any expand/followup task is actively streaming for this module
+  const isExpanding = tasks.some(
+    (t) =>
+      (t.type === "expand" || t.type === "followup") &&
+      t.moduleId === moduleId &&
+      (t.status === "running" || t.status === "queued")
+  );
+
+  // Get any error from the latest failed expand task for this module
+  const latestFailedExpandTask = tasks.find(
+    (t) =>
+      (t.type === "expand" || t.type === "followup") &&
+      t.moduleId === moduleId &&
+      t.status === "failed"
+  );
 
   // Handle adding a comment
   const handleAddComment = useCallback(async () => {
@@ -446,24 +553,6 @@ export default function ModuleDetailPage() {
     [fetchModule]
   );
 
-  // Handle follow-up question
-  const handleFollowUp = useCallback(
-    async (item: KnowledgeItemWithChildren, question: string) => {
-      if (isStreaming || expandingItemId) return;
-      setExpandingItemId(item.id);
-      setFollowUpQuestion(question);
-      resetStream();
-      await startStream("/api/knowledge/followup", {
-        title: item.content.title,
-        summary: item.content.summary,
-        difficulty: item.content.difficulty,
-        details: item.content.details,
-        question,
-      });
-    },
-    [isStreaming, expandingItemId, startStream, resetStream]
-  );
-
   const handleCommentKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.nativeEvent.isComposing) {
       e.preventDefault();
@@ -525,9 +614,55 @@ export default function ModuleDetailPage() {
               <ArrowLeft className="size-4" />
             </Button>
           </Link>
-          <h1 className="text-xl font-bold tracking-tight">
-            {moduleData.topic}
-          </h1>
+          {editingTopic ? (
+            <form
+              className="flex items-center gap-2"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const trimmed = editingTopicValue.trim();
+                if (!trimmed || trimmed === moduleData.topic) {
+                  setEditingTopic(false);
+                  return;
+                }
+                try {
+                  const res = await fetch(`/api/modules/${moduleId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ topic: trimmed }),
+                  });
+                  if (res.ok) {
+                    setModuleData((prev) =>
+                      prev ? { ...prev, topic: trimmed } : prev
+                    );
+                  }
+                } catch { /* ignore */ }
+                setEditingTopic(false);
+              }}
+            >
+              <input
+                autoFocus
+                className="text-xl font-bold tracking-tight bg-transparent border-b-2 border-primary outline-none"
+                value={editingTopicValue}
+                onChange={(e) => setEditingTopicValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setEditingTopic(false);
+                }}
+                onBlur={() => setEditingTopic(false)}
+              />
+            </form>
+          ) : (
+            <h1
+              className="text-xl font-bold tracking-tight cursor-pointer hover:text-primary transition-colors group flex items-center gap-1.5"
+              onClick={() => {
+                setEditingTopic(true);
+                setEditingTopicValue(moduleData.topic);
+              }}
+              title="点击编辑标题"
+            >
+              {moduleData.topic}
+              <Pencil className="size-3.5 opacity-0 group-hover:opacity-50 transition-opacity" />
+            </h1>
+          )}
           <ExportObsidianDialog
             moduleId={moduleId}
             moduleTopic={moduleData.topic}
@@ -539,15 +674,80 @@ export default function ModuleDetailPage() {
             }
           />
         </div>
-        {moduleData.tags.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 pl-10">
-            {moduleData.tags.map((tag) => (
-              <Badge key={tag} variant="secondary" className="text-xs">
-                {tag}
-              </Badge>
-            ))}
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-1.5 pl-10">
+          {moduleData.tags.map((tag) => (
+            <Badge
+              key={tag}
+              variant="secondary"
+              className="text-xs group/tag cursor-pointer hover:bg-destructive/20 transition-colors"
+              onClick={async () => {
+                const newTags = moduleData.tags.filter((t) => t !== tag);
+                try {
+                  const res = await fetch(`/api/modules/${moduleId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ tags: newTags }),
+                  });
+                  if (res.ok) {
+                    setModuleData((prev) => prev ? { ...prev, tags: newTags } : prev);
+                  }
+                } catch { /* ignore */ }
+              }}
+              title="点击删除标签"
+            >
+              {tag}
+              <X className="size-3 ml-0.5 opacity-0 group-hover/tag:opacity-70 transition-opacity" />
+            </Badge>
+          ))}
+          {editingTag ? (
+            <input
+              autoFocus
+              className="h-5 w-24 rounded-md border bg-transparent px-2 text-xs outline-none focus:border-primary"
+              placeholder="输入标签..."
+              value={editingTagValue}
+              onChange={(e) => setEditingTagValue(e.target.value)}
+              onKeyDown={async (e) => {
+                if (e.key === "Escape") {
+                  setEditingTag(false);
+                  setEditingTagValue("");
+                }
+                if (e.key === "Enter") {
+                  const trimmed = editingTagValue.trim();
+                  if (!trimmed || moduleData.tags.includes(trimmed)) {
+                    setEditingTag(false);
+                    setEditingTagValue("");
+                    return;
+                  }
+                  const newTags = [...moduleData.tags, trimmed];
+                  try {
+                    const res = await fetch(`/api/modules/${moduleId}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ tags: newTags }),
+                    });
+                    if (res.ok) {
+                      setModuleData((prev) => prev ? { ...prev, tags: newTags } : prev);
+                    }
+                  } catch { /* ignore */ }
+                  setEditingTag(false);
+                  setEditingTagValue("");
+                }
+              }}
+              onBlur={() => {
+                setEditingTag(false);
+                setEditingTagValue("");
+              }}
+            />
+          ) : (
+            <Badge
+              variant="outline"
+              className="text-xs cursor-pointer hover:bg-muted transition-colors border-dashed"
+              onClick={() => setEditingTag(true)}
+            >
+              + 添加标签
+            </Badge>
+          )}
+        </div>
       </header>
 
       {/* Content area: three-column layout */}
@@ -585,18 +785,17 @@ export default function ModuleDetailPage() {
 
         {/* Middle: Knowledge items */}
         <div className="flex-1 p-6">
-          {/* Stream error notice */}
-          {streamError && (
+          {/* Error notice for failed expand tasks */}
+          {latestFailedExpandTask && (
             <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
               <p className="font-medium">展开知识失败</p>
-              <p className="mt-1 text-destructive/80">{streamError}</p>
+              <p className="mt-1 text-destructive/80">{latestFailedExpandTask.error}</p>
               <Button
                 variant="outline"
                 size="sm"
                 className="mt-2"
                 onClick={() => {
-                  setExpandingItemId(null);
-                  resetStream();
+                  useTaskStore.getState().clearCompleted();
                 }}
               >
                 关闭
@@ -604,8 +803,8 @@ export default function ModuleDetailPage() {
             </div>
           )}
 
-          {/* Streaming indicator */}
-          {isStreaming && expandingItemId && (
+          {/* Streaming indicator — show when any expand task is running */}
+          {isExpanding && (
             <div className="mb-4 flex items-center gap-2 rounded-lg border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
               <span>正在生成深入内容...</span>
@@ -626,9 +825,22 @@ export default function ModuleDetailPage() {
           />
         </div>
 
-        {/* Right column: Favorites + Comments panel — sticky */}
-        <div className="hidden lg:block shrink-0">
-          <aside className="sticky top-0 h-screen w-[280px] flex-col border-l bg-background flex">
+        {/* Right column: Favorites + Comments + Chat panel — sticky, resizable */}
+        <div className="hidden lg:block shrink-0 relative">
+          {/* Left-side drag handle for right panel */}
+          <div
+            className="absolute top-0 left-0 h-full w-1.5 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 transition-colors z-10"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              rightDragging.current = true;
+              document.body.style.cursor = "col-resize";
+              document.body.style.userSelect = "none";
+            }}
+          />
+          <aside
+            className="sticky top-0 h-screen flex-col border-l bg-background flex overflow-hidden"
+            style={{ width: `${rightPanelWidth}px` }}
+          >
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-1 flex-col overflow-hidden">
             <TabsList className="mx-3 mt-3">
               <TabsTrigger value="favorites" className="gap-1.5">
@@ -638,6 +850,10 @@ export default function ModuleDetailPage() {
               <TabsTrigger value="comments" className="gap-1.5">
                 <MessageSquare className="size-3.5" />
                 评论
+              </TabsTrigger>
+              <TabsTrigger value="chat" className="gap-1.5">
+                <MessageCircle className="size-3.5" />
+                聊天
               </TabsTrigger>
             </TabsList>
 
@@ -826,17 +1042,22 @@ export default function ModuleDetailPage() {
                 </div>
               )}
             </TabsContent>
+
+            {/* Chat Tab */}
+            <TabsContent value="chat" className="flex flex-1 flex-col overflow-hidden min-h-0">
+              <ChatPanel
+                moduleId={moduleId}
+                moduleData={{ topic: moduleData.topic, items: moduleData.items }}
+                selectedItem={selectedItem}
+                onItemCreated={handleItemCreated}
+              />
+            </TabsContent>
           </Tabs>
           </aside>
         </div>
       </div>
 
-      <FollowUpFab
-        selectedItem={selectedItem}
-        moduleId={moduleId}
-        isExpanding={!!expandingItemId}
-        onFollowUp={handleFollowUp}
-      />
+      <TaskQueueFab />
     </div>
   );
 }
