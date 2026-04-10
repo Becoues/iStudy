@@ -122,6 +122,48 @@ export async function GET(
   }
 }
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const { topic, tags } = body;
+
+    const data: Record<string, unknown> = {};
+    if (topic !== undefined) {
+      if (typeof topic !== "string" || !topic.trim()) {
+        return NextResponse.json({ error: "topic must be a non-empty string" }, { status: 400 });
+      }
+      data.topic = topic.trim();
+    }
+    if (tags !== undefined) {
+      if (!Array.isArray(tags)) {
+        return NextResponse.json({ error: "tags must be an array" }, { status: 400 });
+      }
+      data.tags = JSON.stringify(tags);
+    }
+
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json({ error: "No fields to update" }, { status: 400 });
+    }
+
+    const updated = await prisma.knowledgeModule.update({
+      where: { id },
+      data,
+    });
+
+    return NextResponse.json({
+      id: updated.id,
+      topic: updated.topic,
+      tags: JSON.parse(updated.tags),
+    });
+  } catch {
+    return NextResponse.json({ error: "Failed to update module" }, { status: 500 });
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

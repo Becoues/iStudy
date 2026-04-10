@@ -13,8 +13,9 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useStreamResponse } from "@/hooks/useStreamResponse";
+import { useTaskQueue } from "@/hooks/useTaskQueue";
 import { parseGenerationResponse } from "@/lib/parseKnowledge";
+import { TaskQueueFab } from "@/components/task/TaskQueueFab";
 import type { ModuleListItem } from "@/types/knowledge";
 
 // Persist generating state across navigation
@@ -48,8 +49,22 @@ export default function Home() {
   const [generatingTopic, setGeneratingTopic] = useState<string | null>(null);
   const [genFailed, setGenFailed] = useState(false);
 
-  const { streamText, isStreaming, error: streamError, startStream, reset } = useStreamResponse();
-  const prevStreamingRef = useRef(false);
+  // SC003: Task queue integration
+  const { enqueue, tasks } = useTaskQueue();
+
+  // Track which generate task we're watching
+  const [activeGenTaskId, setActiveGenTaskId] = useState<string | null>(null);
+  const completedGenTasksRef = useRef<Set<string>>(new Set());
+
+  // Find the active generate task from the store
+  const activeGenTask = activeGenTaskId
+    ? tasks.find((t) => t.id === activeGenTaskId) ?? null
+    : null;
+
+  // Derive streaming/error state from the task
+  const isStreaming = activeGenTask?.status === "running" || activeGenTask?.status === "queued";
+  const streamError = activeGenTask?.status === "failed" ? activeGenTask.error : null;
+  const streamText = activeGenTask?.result ?? "";
 
   // Restore generating state on mount
   useEffect(() => {
@@ -76,20 +91,24 @@ export default function Home() {
     fetchModules();
   }, []);
 
-  // When streaming completes, parse and save
+  // SC003: Watch for task completion and save the result
   useEffect(() => {
-    if (prevStreamingRef.current && !isStreaming && streamText && !streamError) {
-      handleSave();
-    }
-    prevStreamingRef.current = isStreaming;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isStreaming]);
+    if (!activeGenTaskId) return;
 
-  async function handleSave() {
+    const task = tasks.find((t) => t.id === activeGenTaskId);
+    if (!task) return;
+
+    if (task.status === "completed" && task.result && !completedGenTasksRef.current.has(task.id)) {
+      completedGenTasksRef.current.add(task.id);
+      handleSave(task.result, generatingTopic || topic);
+    }
+  }, [tasks, activeGenTaskId]);
+
+  async function handleSave(resultText: string, saveTopic: string) {
     setSaving(true);
     setSaveError(null);
     try {
-      const parsed = parseGenerationResponse(streamText);
+      const parsed = parseGenerationResponse(resultText);
 
       const items = parsed.items.map((item, index) => ({
         title: item.title,
@@ -103,7 +122,7 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          topic: generatingTopic || topic,
+          topic: saveTopic,
           tags: parsed.tags,
           items,
         }),
@@ -112,9 +131,9 @@ export default function Home() {
       if (!res.ok) throw new Error("保存模块失败");
 
       const saved = await res.json();
-      reset();
       setTopic("");
       setGeneratingTopic(null);
+      setActiveGenTaskId(null);
       localStorage.removeItem(GENERATING_KEY);
       router.push(`/modules/${saved.id}`);
     } catch (err) {
@@ -134,7 +153,24 @@ export default function Home() {
     const t = topic.trim();
     setGeneratingTopic(t);
     localStorage.setItem(GENERATING_KEY, JSON.stringify({ topic: t, startedAt: Date.now() }));
-    startStream("/api/knowledge/generate", { topic: t });
+
+    // SC003: Enqueue generation task instead of calling startStream directly
+    const taskId = enqueue({
+      type: "generate",
+      label: t,
+      payload: { topic: t },
+      targetItemId: null,
+      moduleId: null,
+    });
+    setActiveGenTaskId(taskId);
+  }
+
+  function handleReset() {
+    setGeneratingTopic(null);
+    setGenFailed(false);
+    setSaveError(null);
+    setActiveGenTaskId(null);
+    localStorage.removeItem(GENERATING_KEY);
   }
 
   function formatDate(dateStr: string) {
@@ -165,6 +201,9 @@ export default function Home() {
   const parsedItemCount = streamText
     ? (streamText.match(/"title"\s*:/g) || []).length
     : 0;
+
+  // Bytes received for more granular progress
+  const bytesReceived = activeGenTask?.bytesReceived ?? 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
@@ -261,7 +300,7 @@ export default function Home() {
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-base">
                     {genFailed || streamError ? (
-                      <span className="text-red-500 shrink-0">✕</span>
+                      <span className="text-red-500 shrink-0">&#10005;</span>
                     ) : (
                       <Loader2 className="h-4 w-4 animate-spin text-violet-500 shrink-0" />
                     )}
@@ -285,7 +324,7 @@ export default function Home() {
                         variant="ghost"
                         size="sm"
                         className="text-xs text-red-500 hover:text-red-600 px-2 h-7"
-                        onClick={() => { setGeneratingTopic(null); setGenFailed(false); setSaveError(null); reset(); }}
+                        onClick={handleReset}
                       >
                         关闭
                       </Button>
@@ -350,6 +389,8 @@ export default function Home() {
           </div>
         )}
       </section>
+
+      <TaskQueueFab />
     </div>
   );
 }

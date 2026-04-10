@@ -111,6 +111,7 @@ export default function ModuleDetailPage() {
   // Scroll spy — track which item is currently in view for TOC highlighting
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const scrollSpyRef = useRef<IntersectionObserver | null>(null);
+  const middleScrollRef = useRef<HTMLDivElement>(null);
 
   // TOC resizable width
   const [tocWidth, setTocWidth] = useState(() => {
@@ -186,6 +187,8 @@ export default function ModuleDetailPage() {
     // Track which items are currently intersecting and their ratio
     const visibleItems = new Map<string, number>();
 
+    const scrollRoot = middleScrollRef.current;
+
     scrollSpyRef.current = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
@@ -196,14 +199,13 @@ export default function ModuleDetailPage() {
             visibleItems.delete(id);
           }
         }
-        // Pick the item closest to top of viewport among visible items
+        // Pick the item closest to top of scroll container among visible items
         let bestId: string | null = null;
         let bestTop = Infinity;
         for (const [id] of visibleItems) {
           const el = document.getElementById(`knowledge-item-${id}`);
           if (el) {
             const rect = el.getBoundingClientRect();
-            // Prefer items that are near the top of viewport
             const dist = Math.abs(rect.top);
             if (dist < bestTop) {
               bestTop = dist;
@@ -215,7 +217,7 @@ export default function ModuleDetailPage() {
           setActiveItemId(bestId);
         }
       },
-      { threshold: [0, 0.25, 0.5], rootMargin: "-10% 0px -60% 0px" }
+      { root: scrollRoot, threshold: [0, 0.25, 0.5], rootMargin: "-10% 0px -60% 0px" }
     );
 
     for (const id of allIds) {
@@ -605,8 +607,9 @@ export default function ModuleDetailPage() {
   }
 
   return (
-    <div>
-      {/* Header — scrolls with content */}
+    <div className="flex h-[calc(100dvh-3.5rem)]">
+      {/* Left area: header + TOC + content — scrolls together, header scrolls away */}
+      <div ref={middleScrollRef} className="flex-1 overflow-y-auto min-w-0">
       <header className="flex flex-col gap-3 border-b px-6 py-5">
         <div className="flex items-center gap-3">
           <Link href="/">
@@ -750,40 +753,39 @@ export default function ModuleDetailPage() {
         </div>
       </header>
 
-      {/* Content area: three-column layout */}
+      {/* Content area: TOC (sticky) + knowledge cards */}
       <div className="flex">
-        {/* Left: TOC sidebar — sticky, resizable */}
-        <div className="hidden lg:block shrink-0 relative">
-          <div
-            className="sticky top-0 h-screen overflow-auto border-r bg-background"
-            style={{ width: `${tocWidth}px` }}
-          >
-            <div className="border-b px-4 py-3">
-              <h2 className="text-sm font-semibold text-foreground">目录</h2>
+        {/* TOC sidebar — sticky within scroll container, resizable */}
+        <div className="hidden lg:block shrink-0" style={{ width: `${tocWidth}px` }}>
+          <div className="sticky top-0 h-[calc(100dvh-3.5rem)] border-r bg-background relative">
+            <div className="h-full overflow-auto">
+              <div className="border-b px-4 py-3">
+                <h2 className="text-sm font-semibold text-foreground">目录</h2>
+              </div>
+              <div className="p-2">
+                <KnowledgeToc
+                  items={moduleData.items}
+                  selectedItemId={activeItemId}
+                  onSelectItem={handleSelectItem}
+                  onDeleteItem={handleDeleteItem}
+                  onMoveItem={handleMoveItem}
+                />
+              </div>
             </div>
-            <div className="p-2">
-              <KnowledgeToc
-                items={moduleData.items}
-                selectedItemId={activeItemId}
-                onSelectItem={handleSelectItem}
-                onDeleteItem={handleDeleteItem}
-                onMoveItem={handleMoveItem}
-              />
-            </div>
+            {/* Drag handle */}
+            <div
+              className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 transition-colors z-10"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                tocDragging.current = true;
+                document.body.style.cursor = "col-resize";
+                document.body.style.userSelect = "none";
+              }}
+            />
           </div>
-          {/* Drag handle */}
-          <div
-            className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 transition-colors z-10"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              tocDragging.current = true;
-              document.body.style.cursor = "col-resize";
-              document.body.style.userSelect = "none";
-            }}
-          />
         </div>
 
-        {/* Middle: Knowledge items */}
+        {/* Knowledge items — scrolls with the left area */}
         <div className="flex-1 p-6">
           {/* Error notice for failed expand tasks */}
           {latestFailedExpandTask && (
@@ -824,9 +826,11 @@ export default function ModuleDetailPage() {
             expandingItemId={expandingItemId}
           />
         </div>
+      </div>
+      </div>{/* end left scroll area */}
 
-        {/* Right column: Favorites + Comments + Chat panel — sticky, resizable */}
-        <div className="hidden lg:block shrink-0 relative">
+      {/* Right panel: full height, resizable */}
+      <div className="hidden lg:block shrink-0 relative">
           {/* Left-side drag handle for right panel */}
           <div
             className="absolute top-0 left-0 h-full w-1.5 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 transition-colors z-10"
@@ -838,7 +842,7 @@ export default function ModuleDetailPage() {
             }}
           />
           <aside
-            className="sticky top-0 h-screen flex-col border-l bg-background flex overflow-hidden"
+            className="h-full flex-col border-l bg-background flex overflow-hidden"
             style={{ width: `${rightPanelWidth}px` }}
           >
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-1 flex-col overflow-hidden">
@@ -1055,7 +1059,6 @@ export default function ModuleDetailPage() {
           </Tabs>
           </aside>
         </div>
-      </div>
 
       <TaskQueueFab />
     </div>

@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { KnowledgeItemWithChildren } from "@/types/knowledge";
 import { ExportObsidianDialog } from "@/components/knowledge/ExportObsidianDialog";
+import { AddNodeButton } from "@/components/knowledge/AddNodeButton";
 
 function processHighlights(text: string): string {
   return text.replace(/==(.*?)==/g, '<mark>$1</mark>');
@@ -61,6 +62,7 @@ interface KnowledgeItemCardProps {
   maxDepth?: number;
   favorites?: string[];
   selectedItemId?: string | null;
+  onItemCreated?: (item: KnowledgeItemWithChildren) => void;
 }
 
 export function KnowledgeItemCard({
@@ -77,6 +79,7 @@ export function KnowledgeItemCard({
   maxDepth = 3,
   favorites = [],
   selectedItemId = null,
+  onItemCreated,
 }: KnowledgeItemCardProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | undefined>(item.content.imageUrl);
@@ -432,21 +435,32 @@ export function KnowledgeItemCard({
       {item.children.length > 0 && (
         <div className="ml-6 border-l-2 border-border pl-4 pt-4 flex flex-col gap-4">
           {item.children.map((child) => (
-            <KnowledgeItemCard
-              key={child.id}
-              item={child}
-              moduleId={moduleId}
-              moduleTopic={moduleTopic}
-              isFavorite={favorites.includes(child.id)}
-              isSelected={selectedItemId === child.id}
-              onToggleFavorite={onToggleFavorite}
-              onSelect={onSelect}
-              onExpand={onExpand}
-              onComment={onComment}
-              maxDepth={maxDepth}
-              favorites={favorites}
-              selectedItemId={selectedItemId}
-            />
+            <div key={child.id} className="flex flex-col gap-4">
+              <KnowledgeItemCard
+                item={child}
+                moduleId={moduleId}
+                moduleTopic={moduleTopic}
+                isFavorite={favorites.includes(child.id)}
+                isSelected={selectedItemId === child.id}
+                onToggleFavorite={onToggleFavorite}
+                onSelect={onSelect}
+                onExpand={onExpand}
+                onComment={onComment}
+                maxDepth={maxDepth}
+                favorites={favorites}
+                selectedItemId={selectedItemId}
+                onItemCreated={onItemCreated}
+              />
+              {/* Add sibling button after each child */}
+              {onItemCreated && (
+                <AddNodeButton
+                  moduleId={moduleId}
+                  parentId={item.id}
+                  orderIndex={child.orderIndex + 1}
+                  onItemCreated={onItemCreated}
+                />
+              )}
+            </div>
           ))}
         </div>
       )}
