@@ -19,6 +19,22 @@ export async function POST(request: NextRequest) {
     const writer = writable.getWriter();
     const encoder = new TextEncoder();
 
+    // Safe wrappers — no-op if writer/client is already closed
+    const safeWrite = async (data: string) => {
+      try {
+        await writer.write(encoder.encode(data));
+      } catch {
+        /* writer closed (client disconnected) */
+      }
+    };
+    const safeClose = async () => {
+      try {
+        await writer.close();
+      } catch {
+        /* already closed */
+      }
+    };
+
     // Fire and forget
     (async () => {
       try {
@@ -41,24 +57,16 @@ export async function POST(request: NextRequest) {
         for await (const chunk of stream) {
           const content = chunk.choices[0]?.delta?.content || "";
           accumulated += content;
-          await writer.write(
-            encoder.encode(`data: ${JSON.stringify({ content })}\n\n`)
-          );
+          await safeWrite(`data: ${JSON.stringify({ content })}\n\n`);
         }
 
-        await writer.write(
-          encoder.encode(
-            `data: ${JSON.stringify({ done: true, fullContent: accumulated })}\n\n`
-          )
+        await safeWrite(
+          `data: ${JSON.stringify({ done: true, fullContent: accumulated })}\n\n`
         );
       } catch (error) {
-        await writer.write(
-          encoder.encode(
-            `data: ${JSON.stringify({ error: String(error) })}\n\n`
-          )
-        );
+        await safeWrite(`data: ${JSON.stringify({ error: String(error) })}\n\n`);
       } finally {
-        await writer.close();
+        await safeClose();
       }
     })();
 
