@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { scrollElementIntoContainer } from "@/lib/scroll-utils";
 import { draggable, dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
@@ -29,6 +30,7 @@ interface KnowledgeTocProps {
   items: KnowledgeItemWithChildren[];
   selectedItemId: string | null;
   onSelectItem: (item: KnowledgeItemWithChildren) => void;
+  onScrollToItem?: (itemId: string) => void;
   onDeleteItem?: (itemId: string) => void;
   onMoveItem?: (itemId: string, direction: "up" | "down") => void;
   onItemMoved?: (itemId: string, newParentId: string | null, newIndex: number) => void;
@@ -63,6 +65,7 @@ function TocItem({
   depth,
   selectedItemId,
   onSelectItem,
+  onScrollToItem,
   onDeleteItem,
   onMoveItem,
   isFirst,
@@ -73,6 +76,7 @@ function TocItem({
   depth: number;
   selectedItemId: string | null;
   onSelectItem: (item: KnowledgeItemWithChildren) => void;
+  onScrollToItem?: (itemId: string) => void;
   onDeleteItem?: (itemId: string) => void;
   onMoveItem?: (itemId: string, direction: "up" | "down") => void;
   isFirst: boolean;
@@ -94,7 +98,16 @@ function TocItem({
   // Auto-scroll TOC sidebar to keep active item visible
   useEffect(() => {
     if (isSelected && buttonRef.current) {
-      buttonRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      const scrollContainer = buttonRef.current.closest<HTMLElement>(
+        "[data-toc-scroll-container]"
+      );
+      if (scrollContainer) {
+        scrollElementIntoContainer(scrollContainer, buttonRef.current, {
+          behavior: "smooth",
+          block: "nearest",
+          padding: 8,
+        });
+      }
     }
   }, [isSelected]);
 
@@ -245,8 +258,7 @@ function TocItem({
             )}
             onClick={() => {
               onSelectItem(item);
-              const el = document.getElementById(`knowledge-item-${item.id}`);
-              el?.scrollIntoView({ behavior: "smooth", block: "center" });
+              onScrollToItem?.(item.id);
             }}
           >
             {hasChildren ? (
@@ -321,6 +333,7 @@ function TocItem({
               depth={depth + 1}
               selectedItemId={selectedItemId}
               onSelectItem={onSelectItem}
+              onScrollToItem={onScrollToItem}
               onDeleteItem={onDeleteItem}
               onMoveItem={onMoveItem}
               isFirst={idx === 0}
@@ -454,6 +467,7 @@ export function KnowledgeToc({
   items,
   selectedItemId,
   onSelectItem,
+  onScrollToItem,
   onDeleteItem,
   onMoveItem,
   onItemMoved,
@@ -523,6 +537,7 @@ export function KnowledgeToc({
           depth={0}
           selectedItemId={selectedItemId}
           onSelectItem={onSelectItem}
+          onScrollToItem={onScrollToItem}
           onDeleteItem={onDeleteItem}
           onMoveItem={onMoveItem}
           isFirst={idx === 0}

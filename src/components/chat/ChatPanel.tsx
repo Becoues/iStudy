@@ -8,7 +8,6 @@ import { useModuleChat } from "@/hooks/useModuleChat";
 import { CondensePreview } from "@/components/chat/CondensePreview";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { KnowledgeItemWithChildren, KnowledgeItemData } from "@/types/knowledge";
 
@@ -57,11 +56,18 @@ export function ChatPanel({ moduleId, moduleData, selectedItem, onItemCreated }:
   const [showCondensePreview, setShowCondensePreview] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: "smooth",
+    });
   }, [messages, isStreaming]);
 
   const handleSend = useCallback(() => {
@@ -168,7 +174,7 @@ export function ChatPanel({ moduleId, moduleData, selectedItem, onItemCreated }:
       ) : null}
 
       {/* Message list — use native overflow instead of ScrollArea for reliable scrolling */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto min-h-0">
         <div className="flex flex-col gap-2 p-3">
           {messages.length === 0 && !isStreaming && (
             <div className="flex flex-col items-center justify-center py-12 text-center">

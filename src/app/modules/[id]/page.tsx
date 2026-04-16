@@ -20,6 +20,7 @@ import { useFavorites } from "@/hooks/useFavorites";
 import { useTaskQueue } from "@/hooks/useTaskQueue";
 import { useTaskStore } from "@/lib/task-store";
 import { parseExpansionResponse } from "@/lib/parseKnowledge";
+import { scrollElementIntoContainer } from "@/lib/scroll-utils";
 import { insertItemIntoTree } from "@/lib/tree-utils";
 import { KnowledgeItemList } from "@/components/knowledge/KnowledgeItemList";
 import { KnowledgeToc } from "@/components/knowledge/KnowledgeToc";
@@ -87,7 +88,7 @@ export default function ModuleDetailPage() {
   const { enqueue, tasks } = useTaskQueue();
 
   // Favorites
-  const { favorites, toggleFavorite, isFavorite } = useFavorites(moduleId);
+  const { favorites, toggleFavorite } = useFavorites(moduleId);
 
   // Comments
   const [comments, setComments] = useState<CommentData[]>([]);
@@ -230,6 +231,19 @@ export default function ModuleDetailPage() {
     };
   }, [moduleData, collectAllIds]);
 
+  const scrollToItemCard = useCallback((itemId: string) => {
+    const scrollContainer = middleScrollRef.current;
+    const element = document.getElementById(`knowledge-item-${itemId}`);
+
+    if (!scrollContainer || !element) return;
+
+    scrollElementIntoContainer(scrollContainer, element, {
+      behavior: "smooth",
+      block: "center",
+      padding: 16,
+    });
+  }, []);
+
   // Fetch module data
   const fetchModule = useCallback(async (silent = false) => {
     try {
@@ -295,7 +309,7 @@ export default function ModuleDetailPage() {
 
   // Handle favorite toggle
   const handleToggleFavorite = useCallback(
-    (itemId: string, _title: string) => {
+    (itemId: string) => {
       toggleFavorite(itemId);
     },
     [toggleFavorite]
@@ -609,7 +623,11 @@ export default function ModuleDetailPage() {
   return (
     <div className="flex h-[calc(100dvh-3.5rem)]">
       {/* Left area: header + TOC + content — scrolls together, header scrolls away */}
-      <div ref={middleScrollRef} className="flex-1 overflow-y-auto min-w-0">
+      <div
+        ref={middleScrollRef}
+        data-module-scroll-container
+        className="flex-1 overflow-y-auto min-w-0"
+      >
       <header className="flex flex-col gap-3 border-b px-6 py-5">
         <div className="flex items-center gap-3">
           <Link href="/">
@@ -758,7 +776,7 @@ export default function ModuleDetailPage() {
         {/* TOC sidebar — sticky within scroll container, resizable */}
         <div className="hidden lg:block shrink-0" style={{ width: `${tocWidth}px` }}>
           <div className="sticky top-0 h-[calc(100dvh-3.5rem)] border-r bg-background relative">
-            <div className="h-full overflow-auto">
+            <div className="h-full overflow-auto" data-toc-scroll-container>
               <div className="border-b px-4 py-3">
                 <h2 className="text-sm font-semibold text-foreground">目录</h2>
               </div>
@@ -767,8 +785,10 @@ export default function ModuleDetailPage() {
                   items={moduleData.items}
                   selectedItemId={activeItemId}
                   onSelectItem={handleSelectItem}
+                  onScrollToItem={scrollToItemCard}
                   onDeleteItem={handleDeleteItem}
                   onMoveItem={handleMoveItem}
+                  onItemMoved={handleItemMoved}
                 />
               </div>
             </div>
@@ -891,14 +911,7 @@ export default function ModuleDetailPage() {
                             );
                             if (foundItem) {
                               setSelectedItem(foundItem);
-                              // Scroll to item - find the card element
-                              const el = document.getElementById(
-                                `knowledge-item-${fav.id}`
-                              );
-                              el?.scrollIntoView({
-                                behavior: "smooth",
-                                block: "center",
-                              });
+                              scrollToItemCard(fav.id);
                             }
                           }}
                         >
