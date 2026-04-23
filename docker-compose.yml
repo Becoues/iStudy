@@ -4,8 +4,19 @@ services:
     container_name: istudy
     ports:
       - "3002:3000"
+    # Run as the host user so files created in bind-mounted volumes
+    # (./data, ./public/images/knowledge, the obsidian vault) end up
+    # owned by the host user and are writable without sudo. Override
+    # by exporting LOCAL_UID / LOCAL_GID before `docker compose up`.
+    user: "${LOCAL_UID:-501}:${LOCAL_GID:-20}"
+    environment:
+      # Path the container writes Obsidian markdown into. Must match the
+      # right-hand side of the obsidian bind-mount below.
+      OBSIDIAN_PATH: "${OBSIDIAN_PATH:-/Users/mac/Documents/Main/AI_talking}"
     volumes:
       - ./data:/app/data
       - ./public/images/knowledge:/app/public/images/knowledge
-      - /Users/mac/Documents/Main/AI_talking:/Users/mac/Documents/Main/AI_talking
+      # Bind the host obsidian vault into the container at the same path
+      # the app writes to. Override via OBSIDIAN_HOST_PATH / OBSIDIAN_PATH.
+      - "${OBSIDIAN_HOST_PATH:-/Users/mac/Documents/Main/AI_talking}:${OBSIDIAN_PATH:-/Users/mac/Documents/Main/AI_talking}"
     restart: unless-stopped

@@ -55,7 +55,8 @@ model Settings {
   id             Int      @id @default(1)
   provider       String   @default("DeerAPI")
   apiKey         String   @default("")
-  model          String   @default("gpt-4o")
+  model          String   @default("gpt-5.4")
+  imageModel     String   @default("gpt-image-2")
   obsidianPath   String   @default("/Users/mac/Documents/Main/AI_talking")
   obsidianFolder String   @default("iStudy")
   updatedAt      DateTime @updatedAt

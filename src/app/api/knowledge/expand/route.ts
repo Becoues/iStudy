@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
         });
 
         const stream = await openai.chat.completions.create({
-          model: settings?.model || "gpt-4o",
+          model: settings?.model || "gpt-5.4",
           messages: [
             { role: "system", content: getExpandSystemPrompt() },
             {

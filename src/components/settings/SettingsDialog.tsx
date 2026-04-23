@@ -22,7 +22,8 @@ type FeedbackType = "success" | "error" | null;
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [apiKey, setApiKey] = useState("");
-  const [model, setModel] = useState("gpt-4o");
+  const [model, setModel] = useState("gpt-5.4");
+  const [imageModel, setImageModel] = useState("gpt-image-2");
   const [obsidianPath, setObsidianPath] = useState("/Users/mac/Documents/Main/AI_talking");
   const [showKey, setShowKey] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -39,6 +40,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         const data = await res.json();
         if (data.apiKey) setApiKey(data.apiKey);
         if (data.model) setModel(data.model);
+        if (data.imageModel) setImageModel(data.imageModel);
         if (data.obsidianPath) setObsidianPath(data.obsidianPath);
       }
     } catch {
@@ -61,7 +63,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       const res = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey, model, obsidianPath }),
+        body: JSON.stringify({ apiKey, model, imageModel, obsidianPath }),
       });
       if (res.ok) {
         setFeedback({ type: "success", message: "设置已保存" });
@@ -147,7 +149,24 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               type="text"
               value={model}
               onChange={(e) => setModel(e.target.value)}
-              placeholder="gpt-4o"
+              placeholder="gpt-5.4"
+            />
+          </div>
+
+          {/* Image Model */}
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="settings-image-model"
+              className="text-sm font-medium text-foreground"
+            >
+              生图模型
+            </label>
+            <Input
+              id="settings-image-model"
+              type="text"
+              value={imageModel}
+              onChange={(e) => setImageModel(e.target.value)}
+              placeholder="gpt-image-2"
             />
           </div>
 

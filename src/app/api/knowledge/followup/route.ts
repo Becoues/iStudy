@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 严格按照系统提示中要求的 JSON 格式输出，只包含 items 字段。`;
 
         const stream = await openai.chat.completions.create({
-          model: settings?.model || "gpt-4o",
+          model: settings?.model || "gpt-5.4",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },

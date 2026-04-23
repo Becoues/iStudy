@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 请直接生成一张插图。`;
 
     const response = await openai.chat.completions.create({
-      model: "gemini-3-pro-image",
+      model: settings.imageModel || "gpt-image-2",
       messages: [{ role: "user", content: prompt }],
     });
 

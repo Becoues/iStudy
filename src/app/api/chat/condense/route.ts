@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     });
 
     const response = await openai.chat.completions.create({
-      model: settings?.model || "gpt-4o",
+      model: settings?.model || "gpt-5.4",
       messages: [
         { role: "system", content: getCondenseSystemPrompt() },
         { role: "user", content: getCondenseUserPrompt(messages) },
