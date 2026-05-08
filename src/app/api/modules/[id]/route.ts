@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function safeParseJson(text: string): any {
+function safeParseJson(text: string): unknown {
   try {
     return JSON.parse(text);
   } catch {
@@ -12,7 +11,13 @@ function safeParseJson(text: string): any {
       .replace(/\n/g, "\\n")
       .replace(/\r/g, "\\r")
       .replace(/\t/g, "\\t");
-    return JSON.parse(sanitized);
+    try {
+      return JSON.parse(sanitized);
+    } catch {
+      // Last-resort fallback: return the raw text so callers can still
+      // round-trip it without a 500 — downstream code expects `unknown`.
+      return text;
+    }
   }
 }
 
@@ -23,7 +28,7 @@ interface KnowledgeItemWithChildren {
   orderIndex: number;
   title: string;
   difficulty: string;
-  content: string;
+  content: unknown;
   depth: number;
   createdAt: Date;
   commentCount: number;
@@ -38,7 +43,7 @@ function buildTree(
     orderIndex: number;
     title: string;
     difficulty: string;
-    content: string;
+    content: unknown;
     depth: number;
     createdAt: Date;
     commentCount: number;
@@ -86,7 +91,18 @@ export async function GET(
       include: {
         items: {
           orderBy: { orderIndex: "asc" },
-          include: {
+          // Narrow the columns we read — content is a large JSON blob and we
+          // need only the fields buildTree consumes.
+          select: {
+            id: true,
+            moduleId: true,
+            parentId: true,
+            orderIndex: true,
+            title: true,
+            difficulty: true,
+            content: true,
+            depth: true,
+            createdAt: true,
             _count: { select: { comments: true } },
           },
         },

@@ -38,63 +38,70 @@ export async function runStream(
     const decoder = new TextDecoder();
     let accumulated = "";
 
-    while (true) {
-      const { done, value } = await reader.read();
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
 
-      if (done) {
-        // Stream ended without a done message; finalize with accumulated text
-        onDone(accumulated);
-        break;
-      }
-
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split("\n");
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-
-        // Skip empty lines and SSE comments
-        if (!trimmed || trimmed.startsWith(":")) continue;
-
-        // Handle SSE data: prefix
-        const dataContent = trimmed.startsWith("data: ")
-          ? trimmed.slice(6)
-          : trimmed;
-
-        // Try to parse as JSON to detect control messages
-        try {
-          const parsed = JSON.parse(dataContent);
-
-          if (parsed.error) {
-            reader.cancel();
-            onError(new Error(parsed.error));
-            return;
-          }
-
-          if (parsed.done === true) {
-            const finalText = parsed.fullContent || accumulated;
-            reader.cancel();
-            onDone(finalText);
-            return;
-          }
-
-          // JSON with text/content field
-          if (typeof parsed.text === "string") {
-            accumulated += parsed.text;
-            onChunk(accumulated);
-            continue;
-          }
-
-          if (typeof parsed.content === "string") {
-            accumulated += parsed.content;
-            onChunk(accumulated);
-            continue;
-          }
-        } catch {
-          // Not JSON - treat as raw text chunk
-          accumulated += dataContent;
-          onChunk(accumulated);
+        if (done) {
+          // Stream ended without a done message; finalize with accumulated text
+          onDone(accumulated);
+          return;
         }
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+
+          // Skip empty lines and SSE comments
+          if (!trimmed || trimmed.startsWith(":")) continue;
+
+          // Handle SSE data: prefix
+          const dataContent = trimmed.startsWith("data: ")
+            ? trimmed.slice(6)
+            : trimmed;
+
+          // Try to parse as JSON to detect control messages
+          try {
+            const parsed = JSON.parse(dataContent);
+
+            if (parsed.error) {
+              onError(new Error(parsed.error));
+              return;
+            }
+
+            if (parsed.done === true) {
+              const finalText = parsed.fullContent || accumulated;
+              onDone(finalText);
+              return;
+            }
+
+            // JSON with text/content field
+            if (typeof parsed.text === "string") {
+              accumulated += parsed.text;
+              onChunk(accumulated);
+              continue;
+            }
+
+            if (typeof parsed.content === "string") {
+              accumulated += parsed.content;
+              onChunk(accumulated);
+              continue;
+            }
+          } catch {
+            // Not JSON - treat as raw text chunk
+            accumulated += dataContent;
+            onChunk(accumulated);
+          }
+        }
+      }
+    } finally {
+      // Always release the reader, regardless of how we exited
+      try {
+        await reader.cancel();
+      } catch {
+        /* already closed */
       }
     }
   } catch (err: unknown) {

@@ -15,6 +15,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Whitelist itemId — only safe filename chars allowed (CUID-like)
+    if (typeof itemId !== "string" || !/^[a-zA-Z0-9_-]{1,64}$/.test(itemId)) {
+      return NextResponse.json(
+        { error: "itemId 格式不合法" },
+        { status: 400 }
+      );
+    }
+
     const settings = await prisma.settings.findFirst();
     if (!settings?.apiKey) {
       return NextResponse.json(

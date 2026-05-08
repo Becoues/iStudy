@@ -55,7 +55,8 @@ export interface TaskStore {
 
 export const useTaskStore = create<TaskStore>((set, get) => ({
   tasks: [],
-  maxConcurrency: 2,
+  // Up to 3 in-flight knowledge tasks at once (generate / expand / image).
+  maxConcurrency: 3,
 
   enqueue(incoming) {
     const id = nextId();

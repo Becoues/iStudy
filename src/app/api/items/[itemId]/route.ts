@@ -18,21 +18,19 @@ export async function DELETE(
 
     const moduleId = item.moduleId;
 
-    // Recursively collect all descendant IDs
-    async function collectDescendantIds(parentId: string): Promise<string[]> {
+    // Collect all descendants level-by-level (batched, no N+1)
+    const descendantIds: string[] = [];
+    let frontier: string[] = [itemId];
+    while (frontier.length > 0) {
       const children = await prisma.knowledgeItem.findMany({
-        where: { parentId },
+        where: { parentId: { in: frontier } },
         select: { id: true },
       });
-      const ids: string[] = [];
-      for (const child of children) {
-        ids.push(child.id);
-        ids.push(...(await collectDescendantIds(child.id)));
-      }
-      return ids;
+      const ids = children.map((c) => c.id);
+      if (ids.length === 0) break;
+      descendantIds.push(...ids);
+      frontier = ids;
     }
-
-    const descendantIds = await collectDescendantIds(itemId);
     const allIds = [itemId, ...descendantIds];
 
     // Delete comments first, then items
@@ -67,17 +65,16 @@ const MAX_DEPTH = 3;
  */
 async function collectDescendantIdsOf(parentId: string): Promise<Set<string>> {
   const result = new Set<string>();
-  const queue = [parentId];
-  while (queue.length > 0) {
-    const pid = queue.pop()!;
+  let frontier: string[] = [parentId];
+  while (frontier.length > 0) {
     const children = await prisma.knowledgeItem.findMany({
-      where: { parentId: pid },
+      where: { parentId: { in: frontier } },
       select: { id: true },
     });
-    for (const child of children) {
-      result.add(child.id);
-      queue.push(child.id);
-    }
+    if (children.length === 0) break;
+    const ids = children.map((c) => c.id);
+    for (const id of ids) result.add(id);
+    frontier = ids;
   }
   return result;
 }
@@ -111,23 +108,6 @@ async function computeDepth(parentId: string | null): Promise<number> {
     select: { depth: true },
   });
   return parent ? parent.depth + 1 : 0;
-}
-
-/**
- * Recursively update depth for an item and all its descendants.
- */
-async function updateDepthRecursive(itemId: string, newDepth: number) {
-  await prisma.knowledgeItem.update({
-    where: { id: itemId },
-    data: { depth: newDepth },
-  });
-  const children = await prisma.knowledgeItem.findMany({
-    where: { parentId: itemId },
-    select: { id: true },
-  });
-  for (const child of children) {
-    await updateDepthRecursive(child.id, newDepth + 1);
-  }
 }
 
 /**
@@ -281,14 +261,23 @@ export async function PATCH(
       },
     });
 
-    // Update depths of descendants if parent changed
+    // Update depths of descendants if parent changed (single batched walk)
     if (parentChanged) {
-      const children = await prisma.knowledgeItem.findMany({
-        where: { parentId: itemId },
-        select: { id: true },
-      });
-      for (const child of children) {
-        await updateDepthRecursive(child.id, newDepth + 1);
+      let frontier: string[] = [itemId];
+      let depthLevel = newDepth + 1;
+      while (frontier.length > 0) {
+        const children = await prisma.knowledgeItem.findMany({
+          where: { parentId: { in: frontier } },
+          select: { id: true },
+        });
+        if (children.length === 0) break;
+        const ids = children.map((c) => c.id);
+        await prisma.knowledgeItem.updateMany({
+          where: { id: { in: ids } },
+          data: { depth: depthLevel },
+        });
+        frontier = ids;
+        depthLevel += 1;
       }
     }
 

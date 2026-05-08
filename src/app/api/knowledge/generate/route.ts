@@ -64,7 +64,10 @@ export async function POST(request: NextRequest) {
           `data: ${JSON.stringify({ done: true, fullContent: accumulated })}\n\n`
         );
       } catch (error) {
-        await safeWrite(`data: ${JSON.stringify({ error: String(error) })}\n\n`);
+        console.error("[generate] stream failed:", error);
+        await safeWrite(
+          `data: ${JSON.stringify({ error: "知识生成失败，请稍后重试" })}\n\n`
+        );
       } finally {
         await safeClose();
       }
