@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
+/**
+ * In-process idempotency map for module creation. Keyed by client-generated
+ * token (typically the task.id from the front-end task queue). Survives the
+ * lifetime of a Next.js server process — long enough to absorb refresh /
+ * StrictMode double-mount / retry duplicates, but cheap and lock-free.
+ */
+const RECENT_MODULE_TOKENS = new Map<
+  string,
+  { moduleId: string; expiresAt: number }
+>();
+const TOKEN_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+function gcTokens() {
+  const now = Date.now();
+  for (const [k, v] of RECENT_MODULE_TOKENS.entries()) {
+    if (v.expiresAt < now) RECENT_MODULE_TOKENS.delete(k);
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -59,13 +78,37 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { topic, tags, items } = body;
+    const { topic, tags, items, clientToken } = body;
 
     if (!topic) {
       return NextResponse.json(
         { error: "Topic is required" },
         { status: 400 }
       );
+    }
+
+    // Idempotency: if the same clientToken already produced a module, return
+    // it instead of creating a duplicate (handles refresh / remount / retry).
+    if (typeof clientToken === "string" && clientToken) {
+      gcTokens();
+      const existing = RECENT_MODULE_TOKENS.get(clientToken);
+      if (existing) {
+        const found = await prisma.knowledgeModule.findUnique({
+          where: { id: existing.moduleId },
+        });
+        if (found) {
+          return NextResponse.json(
+            {
+              ...found,
+              tags: JSON.parse(found.tags),
+              deduped: true,
+            },
+            { status: 200 }
+          );
+        }
+        // Module was deleted; drop the stale token so we re-create below.
+        RECENT_MODULE_TOKENS.delete(clientToken);
+      }
     }
 
     const module = await prisma.knowledgeModule.create({
@@ -102,6 +145,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    if (typeof clientToken === "string" && clientToken) {
+      RECENT_MODULE_TOKENS.set(clientToken, {
+        moduleId: module.id,
+        expiresAt: Date.now() + TOKEN_TTL_MS,
+      });
+    }
+
     return NextResponse.json(
       {
         ...module,
@@ -110,6 +160,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
+    console.error("[modules] create failed:", error);
     return NextResponse.json(
       { error: "Failed to create module" },
       { status: 500 }

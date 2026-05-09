@@ -71,6 +71,7 @@ export default function Home() {
   const handlingSaveRef = useRef<Set<string>>(new Set());
 
   const { tasks, enqueue, cancel, retry } = useTaskQueue();
+  const markSaved = useTaskStore((s) => s.markSaved);
 
   const generateTasks = tasks.filter((t) => t.type === "generate");
 
@@ -108,17 +109,29 @@ export default function Home() {
   }
 
   // Watch for newly-completed generate tasks; persist each one independently.
+  // Multi-layer dedup:
+  //   1. task.savedModuleId — survives refresh via zustand persist
+  //   2. handlingSaveRef — synchronous in-session guard
+  //   3. server-side clientToken (task.id) — final backstop
   useEffect(() => {
     for (const task of generateTasks) {
-      if (
-        task.status === "completed" &&
-        task.result &&
-        !handlingSaveRef.current.has(task.id) &&
-        !saveState[task.id]
-      ) {
-        handlingSaveRef.current.add(task.id);
-        void handleSave(task);
+      if (task.status !== "completed" || !task.result) continue;
+      if (task.savedModuleId) {
+        // Already persisted in a previous session — surface success state
+        // without hitting the API again.
+        if (!saveState[task.id]) {
+          setSaveState((prev) => ({
+            ...prev,
+            [task.id]: { status: "saved", moduleId: task.savedModuleId! },
+          }));
+        }
+        continue;
       }
+      if (handlingSaveRef.current.has(task.id)) continue;
+      if (saveState[task.id]) continue;
+
+      handlingSaveRef.current.add(task.id);
+      void handleSave(task);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks]);
@@ -146,12 +159,18 @@ export default function Home() {
           topic: task.label,
           tags: parsed.tags,
           items,
+          // Idempotency token — server returns the existing module if it has
+          // already seen this token (prevents duplicates from refresh /
+          // remount / retry races).
+          clientToken: task.id,
         }),
       });
 
       if (!res.ok) throw new Error("保存模块失败");
       const saved = await res.json();
 
+      // Persist on the task itself so a future refresh skips re-saving.
+      markSaved(task.id, saved.id);
       setSaveState((prev) => ({
         ...prev,
         [task.id]: { status: "saved", moduleId: saved.id },
@@ -523,9 +542,11 @@ function GeneratingCard({
   const isQueued = task.status === "queued";
   const isRunning = task.status === "running";
 
-  // Approximate progress from parsed item count in the streamed text
+  // Approximate progress from parsed item count in the streamed text.
+  // Use "difficulty": as the counter — it appears exactly once per item and
+  // is NOT present in nested references, unlike "title" which over-counts.
   const parsedItemCount = task.result
-    ? (task.result.match(/"title"\s*:/g) || []).length
+    ? (task.result.match(/"difficulty"\s*:/g) || []).length
     : 0;
 
   let statusText: string;
