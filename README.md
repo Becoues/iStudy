@@ -1,8 +1,12 @@
-# iStudy — AI 知识学习系统
+# iStudy - AI 知识学习系统
 
-一个面向学生的 AI 驱动知识学习平台。输入任意主题，AI 自动生成结构化知识点，配备流程图、测验题和卡通配图，支持多级知识展开、收藏和评论。
+iStudy 是一个中文优先的 AI 知识学习平台。输入任意主题后，系统会自动识别主题方向、生成结构化知识模块，并围绕每个知识点提供深入讲解、流程图、测验题、参考链接、配图、评论、收藏、聊天追问和 Obsidian 导出。
+
+## 界面预览
 
 ![首页](docs/image/首页.png)
+
+![同名主题识别](docs/image/识别同名知识点.jpg)
 
 ![知识详情页](docs/image/知识点.png)
 
@@ -10,193 +14,184 @@
 
 ## 功能特性
 
-- **AI 知识生成** — 输入主题（如"Flink"、"Go"、"Rust"），AI 自动生成结构化知识卡片
-- **多级展开** — 每个知识点可"深入了解"，最多支持 3 层递归展开
-- **Mermaid 流程图** — 知识点自动附带可视化流程图
-- **互动测验** — 每个知识点配有选择题，含提示和解析
-- **AI 配图生成** — 一键生成卡通风格教育插图，色彩明快适合学习
-- **收藏系统** — 收藏重要知识点，右侧面板快速查看
-- **评论功能** — 对知识点添加笔记和评论
-- **三栏布局** — 左侧目录导航 + 中间知识卡片 + 右侧收藏/评论面板
-- **悬浮球** — 可拖拽的浮动操作按钮，支持边缘吸附
+- **同名主题识别** - 生成前自动识别多义词或跨领域主题，例如 Ceph 会提示选择云计算、遗传学或公共卫生方向。
+- **并行 AI 知识生成** - 先生成知识大纲，再并发补全详情，保留流式进度反馈和最终稳定顺序。
+- **任务队列** - 首页最多 3 个生成任务并行执行，支持取消、重试、刷新后状态恢复和防重复保存。
+- **结构化知识卡片** - 每个知识点包含摘要、Markdown 详情、难度、Mermaid 图、测验题和参考链接。
+- **递归深入学习** - 对任意知识点继续「深入了解」，最多支持 3 层知识树展开。
+- **手动补充节点** - 在知识树中添加自定义知识节点，后续可继续用 AI 展开。
+- **模块工作台** - 左侧目录导航、中间知识卡片、右侧收藏/评论/聊天面板，目录和右栏宽度可拖拽调整。
+- **模块聊天** - 围绕整个模块或当前知识点提问，可锁定上下文，并把对话凝练为新的知识卡片。
+- **收藏与评论** - 收藏关键知识点，给知识点添加、编辑、删除个人笔记和评论。
+- **AI 配图管理** - 为知识点生成教育插图，支持隐藏、下载、重新生成和删除。
+- **Obsidian 导出** - 支持导出整个模块或单个知识点为 Markdown，可选择携带测验题和 AI 润色。
+- **历史记录管理** - 搜索、按标签筛选、排序和删除已生成的学习模块。
+- **本地优先存储** - SQLite 保存模块、知识点、评论和设置；生成图片与导出文件保存在本地文件系统。
+- **Docker 一键启动** - 提供 `start.sh` 和 `docker compose`，自动处理容器构建、数据挂载和 Obsidian 路径。
 
 ## 技术栈
 
 | 技术 | 版本 | 说明 |
 |------|------|------|
-| Next.js | 16 | App Router + React 19 |
+| Next.js | 16.1 | App Router + React 19 |
+| React | 19.2 | 客户端交互与工作台状态 |
 | TypeScript | 5 | 全项目类型安全 |
-| Prisma | 7 | ORM + SQLite 数据库 |
+| Prisma | 7.4 | SQLite ORM，生成客户端在 `src/generated/prisma` |
 | Tailwind CSS | 4 | 样式框架 |
-| Shadcn/ui | base-nova | 组件库 |
-| OpenAI SDK | 6 | AI 接口（DeerAPI 兼容） |
-| Mermaid.js | 11 | 流程图渲染 |
-| KaTeX | - | 数学公式渲染 |
+| Shadcn/ui / Base UI | 4 / 1.2 | 基础组件与弹窗、菜单、表单控件 |
+| Zustand | 5 | 本地任务队列和持久化状态 |
+| OpenAI SDK | 6.27 | 调用 DeerAPI 兼容接口 |
+| Mermaid.js | 11.13 | 知识流程图渲染 |
+| KaTeX / React Markdown | - | 数学公式、代码高亮和 Markdown 渲染 |
 
----
-
-## 快速开始（部署指南）
-
-> 即使你是编程新手，也可以按照以下步骤完成部署！
+## 快速开始
 
 ### 前置要求
 
-你需要在电脑上安装以下软件：
+1. **Node.js 20.9 或更高版本**
 
-1. **Node.js**（v18 或更高版本）
-   - 下载地址：https://nodejs.org/
-   - 选择 LTS（长期支持）版本，下载安装即可
-   - 安装完成后，打开终端验证：
-     ```bash
-     node -v    # 应显示 v18.x.x 或更高
-     npm -v     # 应显示 9.x.x 或更高
-     ```
+   下载地址：https://nodejs.org/
 
-2. **Git**（版本管理工具）
-   - 下载地址：https://git-scm.com/downloads
-   - macOS 用户可直接在终端输入 `git`，系统会提示安装
+   ```bash
+   node -v
+   npm -v
+   ```
 
-### 第一步：下载项目
+2. **Git**
 
-打开终端（macOS 为 Terminal，Windows 为 PowerShell），执行：
+   下载地址：https://git-scm.com/downloads
+
+### 1. 下载项目
 
 ```bash
 git clone https://github.com/Becoues/iStudy.git
 cd iStudy
 ```
 
-### 第二步：安装依赖
+### 2. 安装依赖
 
 ```bash
 npm install
 ```
 
-> 这一步会下载项目所需的所有依赖包，可能需要 1-3 分钟，请耐心等待。
-
-### 第三步：初始化数据库
+### 3. 初始化数据库
 
 ```bash
 npx prisma migrate dev
 ```
 
-> 这会自动创建 SQLite 数据库文件（`data/istudy.db`），无需手动安装数据库软件。
+这会创建 SQLite 数据库文件，默认路径为 `data/istudy.db`。
 
-### 第四步：启动项目
+### 4. 启动开发服务
 
 ```bash
 npm run dev
 ```
 
-启动成功后，终端会显示：
+浏览器打开 http://localhost:3000。
 
-```
-▲ Next.js 16.x.x
-- Local: http://localhost:3000
-```
+### 5. 配置 AI 和导出路径
 
-用浏览器打开 **http://localhost:3000** 即可看到首页。
+点击页面顶部的设置按钮，配置：
 
-### 第五步：配置 AI 密钥
+- **API 密钥**：DeerAPI 兼容接口密钥
+- **模型**：默认 `gpt-5.4`
+- **生图模型**：默认 `gpt-image-2`
+- **Obsidian 导出目录**：默认 `/Users/mac/Documents/Main/AI_talking`
 
-1. 点击页面左侧导航栏的 **⚙️ 设置** 按钮
-2. 在设置页面填入你的 API Key：
-   - **Provider**: DeerAPI（默认）
-   - **API Key**: 填入你的 DeerAPI 密钥
-   - **Model**: 默认 `gpt-4o`（可选其他模型）
-3. 点击 **保存设置**
-
-> 如果你还没有 API Key，可以在 [DeerAPI](https://api.deerapi.com) 注册获取。
-
-### 第六步：开始学习！
-
-回到首页，在输入框中输入你感兴趣的主题（如"Python"、"机器学习"、"React"），点击生成，AI 会自动创建结构化的知识卡片。
-
----
+保存后即可开始生成知识模块。
 
 ## 生产环境部署
 
-### 方式一：本地构建
+### 本地构建
 
 ```bash
-npm run build    # 构建生产版本
-npm run start    # 启动生产服务器（默认端口 3000）
+npm run build
+npm run start
 ```
 
-### 方式二：Vercel 部署（推荐）
+### Docker 启动
 
-1. 将项目推送到你的 GitHub 仓库
-2. 访问 [vercel.com](https://vercel.com)，使用 GitHub 登录
-3. 点击 "Import Project"，选择你的仓库
-4. Vercel 会自动检测 Next.js 项目并完成部署
-
-> 注意：Vercel 部署需要额外配置数据库（SQLite 不支持 serverless 环境），可考虑使用 Turso 或 PlanetScale 替代。
-
-### 方式三：Docker 部署（最简单）
-
-只需安装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)，然后执行：
+推荐直接使用启动脚本：
 
 ```bash
-# 一键构建并启动
+./start.sh
+```
+
+脚本会检查 Docker、自动创建 Obsidian 导出目录、按需重建镜像，并在 http://localhost:3002 启动服务。
+
+也可以手动执行：
+
+```bash
 docker compose up -d
+docker compose logs -f
+docker compose down
 ```
 
-打开 http://localhost:3002 即可使用。
+Docker 会挂载：
 
-**常用命令：**
+- `./data` -> SQLite 数据库
+- `./public/images/knowledge` -> AI 生成配图
+- Obsidian 导出目录 -> Markdown 文件输出
 
-```bash
-docker compose down            # 停止并删除容器
-docker compose up -d           # 重新启动
-docker compose up -d --build   # 代码改动后重新构建
-docker compose logs -f         # 查看日志
-```
+> 注意：不要同时运行 Docker 服务和 `npm run dev` 访问同一份 SQLite 数据库，避免多进程写入冲突。
 
-> 数据库文件保存在 `./data/` 目录中，AI 生成的配图保存在 `./public/images/knowledge/` 目录中。
-> Docker 和本地开发环境共享同一份数据，删除容器不会丢失数据。
-> **注意：** Docker 和 `npm run dev` 不能同时运行，因为 SQLite 不支持多进程并发写入。使用其中一种方式前，请先停止另一种。
+### Vercel 部署
 
----
+Vercel 可以部署 Next.js 应用，但当前项目默认使用本地 SQLite 和本地文件系统。若部署到 serverless 环境，需要替换数据库和文件存储方案，例如 Turso、PostgreSQL、对象存储或持久卷。
 
 ## 项目结构
 
-```
+```text
 src/
-├── app/                    # Next.js App Router 页面
-│   ├── api/                # API 路由
-│   │   ├── knowledge/      # 知识生成/展开/配图 API
-│   │   ├── modules/        # 模块 CRUD API
+├── app/
+│   ├── api/
+│   │   ├── knowledge/      # 生成、展开、同名识别、配图 API
+│   │   ├── modules/        # 模块与知识点持久化 API
+│   │   ├── chat/           # 模块聊天与对话凝练 API
+│   │   ├── export/         # Obsidian 导出 API
 │   │   ├── comments/       # 评论 API
 │   │   └── settings/       # 设置 API
-│   ├── modules/[id]/       # 模块详情页（三栏布局）
-│   └── settings/           # 设置页面
+│   ├── history/            # 历史记录页
+│   └── modules/[id]/       # 模块学习工作台
 ├── components/
-│   ├── knowledge/          # 知识相关组件（卡片、目录、测验等）
-│   ├── layout/             # 布局组件（导航栏、侧边栏）
-│   └── ui/                 # Shadcn/ui 基础组件
-├── hooks/                  # 自定义 Hooks（SSE 流式响应等）
-├── lib/                    # 工具函数（Prisma、OpenAI、Prompt 等）
-└── types/                  # TypeScript 类型定义
+│   ├── chat/               # 模块聊天与凝练预览
+│   ├── knowledge/          # 知识卡片、目录、测验、导出、节点管理
+│   ├── layout/             # 顶部导航、侧边栏、右侧面板
+│   ├── settings/           # 设置弹窗
+│   ├── task/               # 任务队列悬浮入口与面板
+│   └── ui/                 # 通用 UI 组件
+├── hooks/                  # 收藏、聊天、任务队列、流式响应 hooks
+├── lib/                    # Prompt、解析、任务 store、Prisma、工具函数
+├── generated/prisma/       # Prisma 生成客户端
+└── types/                  # 知识模块类型定义
 ```
 
 ## 常见问题
 
-**Q: `npx prisma migrate dev` 报错怎么办？**
+**Q: `npm run dev` 或 `npm run build` 报 Node 版本错误？**
 
-确保你在项目根目录下执行命令。如果仍有问题，尝试删除 `data/istudy.db` 后重新执行。
+请升级到 Node.js 20.9 或更高版本。
 
-**Q: 页面显示"请先在设置中配置 API Key"？**
+**Q: 页面提示需要配置 API Key？**
 
-进入设置页面配置你的 DeerAPI 密钥，保存后即可正常使用。
+打开设置弹窗，填入 DeerAPI 兼容密钥并保存。
 
-**Q: 生成知识点时一直加载？**
+**Q: 生成任务刷新后中断了怎么办？**
 
-检查 API Key 是否正确，以及网络是否可以访问 `api.deerapi.com`。
+任务队列会把刷新时正在运行的任务标记为失败，可在任务面板中重试。
+
+**Q: 生成知识点时一直加载或失败？**
+
+检查 API Key、模型名称、网络连接和 DeerAPI 账户额度。满载时首页 3 个生成任务会触发更多并发上游请求，可能受到服务商限流影响。
+
+**Q: Obsidian 导出失败？**
+
+确认设置中的导出目录存在且当前用户有写入权限。Docker 模式下请确认该目录已正确挂载。
 
 **Q: 配图生成失败？**
 
-配图功能使用 `gemini-3-pro-image` 模型，确保你的 API Key 支持该模型。单次生成约需 10-20 秒。
-
----
+确认设置中的生图模型可用，且 API Key 支持对应模型。生成图片会写入 `public/images/knowledge/`。
 
 ## License
 
