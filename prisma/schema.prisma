@@ -53,7 +53,7 @@ model Comment {
 
 model Settings {
   id             Int      @id @default(1)
-  provider       String   @default("DeerAPI")
+  provider       String   @default("CometAPI")
   apiKey         String   @default("")
   model          String   @default("gpt-5.4")
   imageModel     String   @default("gpt-image-2")

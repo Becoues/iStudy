@@ -1,5 +1,5 @@
 /**
- * 测试 DeerAPI gemini-3-pro-image 模型生成知识点卡通图片
+ * 测试 CometAPI 生图模型生成知识点卡通图片
  *
  * 用法: npx tsx test/test-gemini-image.ts
  */
@@ -8,9 +8,9 @@ import OpenAI from "openai";
 import fs from "fs";
 import path from "path";
 
-const API_KEY = process.env.DEER_API_KEY || "YOUR_API_KEY_HERE";
-const BASE_URL = "https://api.deerapi.com/v1";
-const MODEL = "gemini-3-pro-image";
+const API_KEY = process.env.COMETAPI_API_KEY || "YOUR_API_KEY_HERE";
+const BASE_URL = "https://api.cometapi.com/v1";
+const MODEL = "gpt-image-2";
 
 async function main() {
   const openai = new OpenAI({
@@ -18,7 +18,7 @@ async function main() {
     baseURL: BASE_URL,
   });
 
-  console.log("正在调用 DeerAPI gemini-3-pro-image 模型...");
+  console.log("正在调用 CometAPI 生图模型...");
   console.log(`模型: ${MODEL}`);
   console.log(`请求: 生成 Go 语言知识点卡通图片 (4K)`);
   console.log("---");

@@ -40,7 +40,7 @@ iStudy 是一个中文优先的 AI 知识学习平台。输入任意主题后，
 | Tailwind CSS | 4 | 样式框架 |
 | Shadcn/ui / Base UI | 4 / 1.2 | 基础组件与弹窗、菜单、表单控件 |
 | Zustand | 5 | 本地任务队列和持久化状态 |
-| OpenAI SDK | 6.27 | 调用 DeerAPI 兼容接口 |
+| OpenAI SDK | 6.27 | 调用 CometAPI 兼容接口 |
 | Mermaid.js | 11.13 | 知识流程图渲染 |
 | KaTeX / React Markdown | - | 数学公式、代码高亮和 Markdown 渲染 |
 
@@ -94,7 +94,7 @@ npm run dev
 
 点击页面顶部的设置按钮，配置：
 
-- **API 密钥**：DeerAPI 兼容接口密钥
+- **API 密钥**：CometAPI 接口密钥（https://api.cometapi.com ，以 `sk-` 开头）
 - **模型**：默认 `gpt-5.4`
 - **生图模型**：默认 `gpt-image-2`
 - **Obsidian 导出目录**：默认 `/Users/mac/Documents/Main/AI_talking`
@@ -175,7 +175,7 @@ src/
 
 **Q: 页面提示需要配置 API Key？**
 
-打开设置弹窗，填入 DeerAPI 兼容密钥并保存。
+打开设置弹窗，填入 CometAPI 密钥并保存。
 
 **Q: 生成任务刷新后中断了怎么办？**
 
@@ -183,7 +183,7 @@ src/
 
 **Q: 生成知识点时一直加载或失败？**
 
-检查 API Key、模型名称、网络连接和 DeerAPI 账户额度。满载时首页 3 个生成任务会触发更多并发上游请求，可能受到服务商限流影响。
+检查 API Key、模型名称、网络连接和 CometAPI 账户额度。满载时首页 3 个生成任务会触发更多并发上游请求，可能受到服务商限流影响。
 
 **Q: Obsidian 导出失败？**
 

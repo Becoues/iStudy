@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
 import fs from "fs/promises";
 import path from "path";
 import prisma from "@/lib/prisma";
+import { createLLMClient, DEFAULT_IMAGE_MODEL } from "@/lib/llm";
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,10 +31,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const openai = new OpenAI({
-      apiKey: settings.apiKey,
-      baseURL: "https://api.deerapi.com/v1",
-    });
+    const openai = createLLMClient(settings);
 
     const prompt = `请为以下知识概念绘制一张可爱的卡通风格教育插图，扁平化设计，色彩明快，可包含少量中文标注，适合学习卡片使用。
 
@@ -44,7 +41,7 @@ export async function POST(request: NextRequest) {
 请直接生成一张插图。`;
 
     const response = await openai.chat.completions.create({
-      model: settings.imageModel || "gpt-image-2",
+      model: settings.imageModel || DEFAULT_IMAGE_MODEL,
       messages: [{ role: "user", content: prompt }],
     });
 

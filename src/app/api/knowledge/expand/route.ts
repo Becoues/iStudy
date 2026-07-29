@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import OpenAI from "openai";
 import prisma from "@/lib/prisma";
+import { createLLMClient } from "@/lib/llm";
 import { getExpandSystemPrompt, getExpandUserPrompt } from "@/lib/prompts";
 
 export async function POST(request: NextRequest) {
@@ -39,10 +39,7 @@ export async function POST(request: NextRequest) {
     (async () => {
       try {
         const settings = await prisma.settings.findFirst();
-        const openai = new OpenAI({
-          apiKey: settings?.apiKey || "",
-          baseURL: "https://api.deerapi.com/v1",
-        });
+        const openai = createLLMClient(settings);
 
         const stream = await openai.chat.completions.create({
           model: settings?.model || "gpt-5.4",

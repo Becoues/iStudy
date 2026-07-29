@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { DEFAULT_PROVIDER, DEFAULT_MODEL, DEFAULT_IMAGE_MODEL } from "@/lib/llm";
 
 function maskApiKey(key: string): string {
   if (!key || key.length <= 8) return key ? "****" : "";
@@ -52,10 +53,10 @@ export async function PUT(request: NextRequest) {
       },
       create: {
         id: 1,
-        provider: provider || "DeerAPI",
+        provider: provider || DEFAULT_PROVIDER,
         apiKey: finalApiKey || "",
-        model: model || "gpt-5.4",
-        imageModel: imageModel || "gpt-image-2",
+        model: model || DEFAULT_MODEL,
+        imageModel: imageModel || DEFAULT_IMAGE_MODEL,
         obsidianPath: obsidianPath || "/Users/mac/Documents/Main/AI_talking",
         obsidianFolder: obsidianFolder || "iStudy",
       },

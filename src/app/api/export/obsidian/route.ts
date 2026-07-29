@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
 import fs from "fs/promises";
 import path from "path";
 import prisma from "@/lib/prisma";
+import { createLLMClient } from "@/lib/llm";
 
 interface ExportRequest {
   moduleId: string;
@@ -222,10 +222,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const openai = new OpenAI({
-        apiKey: settings.apiKey,
-        baseURL: "https://api.deerapi.com/v1",
-      });
+      const openai = createLLMClient(settings);
 
       const polishResponse = await openai.chat.completions.create({
         model: "gemini-3.1-flash-lite-preview",

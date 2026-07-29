@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import OpenAI from "openai";
 import prisma from "@/lib/prisma";
+import { createLLMClient, DEFAULT_MODEL } from "@/lib/llm";
 import {
   getOutlineSystemPrompt,
   getOutlineUserPrompt,
@@ -189,11 +189,8 @@ export async function POST(request: NextRequest) {
           );
           return;
         }
-        const openai = new OpenAI({
-          apiKey: settings.apiKey,
-          baseURL: "https://api.deerapi.com/v1",
-        });
-        const model = settings.model || "gpt-5.4";
+        const openai = createLLMClient(settings);
+        const model = settings.model || DEFAULT_MODEL;
 
         // ---------- Phase 1: outline ----------
         const outlineCompletion = await openai.chat.completions.create({
@@ -287,7 +284,7 @@ export async function POST(request: NextRequest) {
           if (error instanceof Error) {
             const m = error.message.toLowerCase();
             if (m.includes("quota") || m.includes("额度"))
-              return "API 额度不足，请到设置中切换 Key 或前往 DeerAPI 充值";
+              return "API 额度不足，请到设置中切换 Key 或前往 CometAPI 充值";
             if (m.includes("401") || m.includes("unauthor"))
               return "API Key 无效或未授权，请检查设置";
             if (m.includes("429"))

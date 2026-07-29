@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
 import prisma from "@/lib/prisma";
+import { createLLMClient, DEFAULT_MODEL } from "@/lib/llm";
 import {
   getDisambiguateSystemPrompt,
   getDisambiguateUserPrompt,
@@ -84,13 +84,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ambiguous: false });
     }
 
-    const openai = new OpenAI({
-      apiKey: settings.apiKey,
-      baseURL: "https://api.deerapi.com/v1",
-    });
+    const openai = createLLMClient(settings);
 
     const completion = await openai.chat.completions.create({
-      model: settings.model || "gpt-5.4",
+      model: settings.model || DEFAULT_MODEL,
       messages: [
         { role: "system", content: getDisambiguateSystemPrompt() },
         { role: "user", content: getDisambiguateUserPrompt(topic) },

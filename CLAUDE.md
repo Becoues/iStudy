@@ -10,8 +10,8 @@ iStudy — AI 知识学习系统。面向学生的 AI 驱动知识学习平台�
 
 - **Framework**: Next.js 16 (App Router) + React 19 + TypeScript
 - **Database**: Prisma 7 + SQLite via `@prisma/adapter-better-sqlite3` (no Rust engine)
-- **AI**: OpenAI SDK with DeerAPI endpoint (`https://api.deerapi.com/v1`)
-- **Image Gen**: `gemini-3-pro-image` model via DeerAPI, returns base64 PNG in content
+- **AI**: OpenAI SDK against CometAPI (`https://api.cometapi.com/v1`), an OpenAI-compatible aggregator. Client construction is centralized in `src/lib/llm.ts` (`createLLMClient`) — never instantiate `new OpenAI()` in a route.
+- **Image Gen**: `gpt-image-2` model via CometAPI, returns base64 PNG in content
 - **UI**: Shadcn/ui (base-nova style) + Tailwind CSS 4 + Lucide React
 - **Diagrams**: Mermaid.js (dynamic import, SSR disabled)
 - **Math**: KaTeX via remark-math + rehype-katex
